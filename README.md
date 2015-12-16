@@ -1,13 +1,12 @@
-# ldp-service
+# oslc-service
 
-A simple Node.js module providing Express middleware to create a [W3C Linked Data Platform](http://www.w3.org/2012/ldp) server. The service uses MongoDB for persistence, jsonld.js for JSON-LD support, and a few other JavaScript libraries.  A sample app using the LDP middleware service is running at [http://ldp-app.mybluemix.net](http://ldp-app.mybluemix.net).
+A Node.js module providing Express middleware to create an [OSLC 3.0](https://tools.oasis-open.org/version-control/svn/oslc-core/trunk/specs/oslc-core.html) server. The service uses the ldp-service Express middleware module which provides MongoDB for persistence, jsonld.js for JSON-LD support, and a few other JavaScript libraries.  A sample app using the OSLC middleware service is running at [http://oslc-browser.mybluemix.net](http://oslc-browser.mybluemix.net).
 
-ldp-service supports LDP basic and direct containers. Indirect
-containers and non-RDF source are not implemented.
+oslc-service supports any OSLC Domain by including the domain vocabulary URIs at open-services.net/ns in the config.json file.
 
-Many thanks to Steve Speicher and Sam Padgett for their valuable contribution to LDP and this LDP middleware.
+Many thanks to Steve Speicher and Sam Padgett for their valuable contribution to LDP and the LDP middleware upon which this service is built.
 
-Module planning, maintenance and issues can be see at at the [ldp-service](https://hub.jazz.net/project/jamsden/ldp-service/overview) IBM Bluemix DevOps Services project.
+Module planning, maintenance and issues can be see at at the [oslc-service](https://hub.jazz.net/project/jamsden/oslc-service/overview) IBM Bluemix DevOps Services project.
 
 
 ## Using
@@ -25,9 +24,9 @@ Install express.js and create a sample express app
 
 2) Edit the package.json file to add a dependency on ldp-service
 
-	"dependencies": {"ldp-service": "~0.0.1"},
+	"dependencies": {"oslc-service": "~0.0.1"},
 
-3) Edit app.js and add whatever Express middleware you need including ldp-service. ldp-service also provides access to its MongoDB database in case additional middleware needs direct access to the database.
+3) Edit app.js and add whatever Express middleware you need including oslc-service. oslc-service also utilizes ldp-service which provides access to a MongoDB database in case additional middleware needs direct access to the database.
 
 	var ldpService = require('ldp-service');
 	app.use(ldpService());
