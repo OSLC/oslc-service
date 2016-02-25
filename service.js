@@ -30,8 +30,8 @@ var oslcRoutes = function(env) {
 	var ldpService = require('ldp-service'); // OSLC is built on LDP
 
 	var subApp = express();
-	var resource = subApp.route(env.context + '*');
-	subApp.use(ldpService(env));
+	// anything those services don't handle will be passed to this service next
+	var resource = subApp.route(env.context);
 
 	// route any requests matching the LDP context (defaults to /r/*)
 	resource.all(function(req, res, next) {
@@ -109,7 +109,10 @@ var oslcRoutes = function(env) {
 		var lastSegment = path.replace(/[^\w\s\-_]/gi, '');
 		return uri + encodeURIComponent(lastSegment);
 	}
-console.log('returning subApp: '+subApp);
+
+	// after the OSLC service, route requests to the LDP service
+	subApp.use(ldpService(env));
+
 	return subApp;
 }
 
