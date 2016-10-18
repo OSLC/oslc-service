@@ -69,6 +69,7 @@ var oslcRoutes = function(env) {
 	});
 
 	subApp.get('/properties', function(req, res, next){
+		console.log("PROPERTIES");
 		var properties = getProperties(req.body);
 		res.send(properties);
 	});
@@ -85,22 +86,77 @@ var oslcRoutes = function(env) {
 
 	resource.post(function(req, res, next) {
 		console.log('OSLC POST request on:'+req.path);
-		check(req, res, function(result){
-			console.log("HERE " + result);
-			if(result[0]){
-				res.sendStatus('500');
-			}else if(result[1].length > 0){
-				console.log("Not correct format for the inputted resource");
-				res.sendStatus('400');
+
+		ldpService.db.query("SELECT%20DISTINCT%20%3Fg%20WHERE%20%7BGRAPH%20%3Fg%20%7B%3Fs%20http%3A%2F%2Fopen-services.net%2Fns%2Fcore%23creation%20"+req.fullURI+"%20%7D%7D", "application/ld+json", function(err, ires){
+			if(res.statusCode === 404){
+				console.error("Creation URI does not exist");
+				res.sendStatus(404);
 			}
-			// console.log("EXECUTED9 " + next.stack);
-			next();
-			
-		});
+
+			check(req, res, function(result){
+				console.log("HERE " + result);
+				if(result[0]){
+					res.sendStatus('500');
+				}else if(result[1].length > 0){
+					console.log("Not correct format for the inputted resource");
+					res.sendStatus('400');
+				}
+				// console.log("EXECUTED9 " + next.stack);
+				next();
+				
+			});
+
+
+		})
+		
 	});
+
+	/*
+		test strategy for Sam Padgett
+		OSLC 3.0 test platform
+		wrote a test case for each clause
+		framework for executing and evaluating those cases
+		see if server is OSLC 3.0 compliant
+	*/
 
 	resource.get(function(req, res, next) {
 		console.log('OSLC GET request on:'+req.path);
+
+		if(req.fullURI.includes("?")){
+			var base = req.fullURI.substring(0, req.fullURI.indexOf('?'));
+			// Need to replace '/' w/ %2F to be in compliance w/ URI
+			ldpService.db.query("SELECT%20DISTINCT%20%3Fg%20WHERE%20%7BGRAPH%20%3Fg%20%7B%3Fs%20http%3A%2F%2Fopen-services.net%2Fns%2Fcore%23queryBase%20"+base+"%20%7D%7D", "application/ld+json", function(err, ires){
+				if(ires.statusCode === 404){
+					console.error("Query URI does not exist");
+					res.sendStatus(404);
+				}
+
+				var query = req.fullURI.substring(req.fullURI.indexOf('?')+1, req.fullURI.length);
+				var sparql_query = "";
+
+				// Construct SPARQL Query
+				/*
+
+					if(query.includes("oslc.select")){
+						index = query.indexOf('=')
+
+					}
+
+					if(query.include("oslc.prefix")){
+						index = query.indexOf('')
+					}
+
+					if(query.include("oslc.where")){
+						var index = query.indexOf("oslc.where")+"oslc.where".length;
+						sparql_query += "WHERE GRAPH " + uri + " {?s " + +"}";
+					}
+
+				*/
+
+				
+			});
+		}
+
 		next();
 	});
 
@@ -108,7 +164,6 @@ var oslcRoutes = function(env) {
 		console.log('OSLC PUT request on:'+req.path);
 		//console.log(req);
 		check(req, res, function(result){
-			console.log("HERE " + result);
 			if(result[0]){
 				res.sendStatus('500');
 			}else if(result[1].length > 0){
@@ -129,17 +184,15 @@ var oslcRoutes = function(env) {
 
 	function getProperties(file_name){
 
-		var file = JSON.parse(fs.readFileSync("./shape-files/"+file_name+"-shape.js", 'utf8'));
+		var file = JSON.parse(fs.readFileSync("./oslc-service/shape-files/"+file_name+"-shape.json", 'utf8'));
 		var shape = file;
-
+		console.log("SHAPE READ");
 		var properties = [];
 
 		for(var i = 0; i < shape["@graph"].length; i++){
 		
 			if(shape["@graph"][i]["@id"] === oslc.Property){
-				properties.add(
-					shape["@graph"][i]["name"]
-				);			
+				properties.add(shape["@graph"][i]["name"]);			
 			}
 		}
 
@@ -147,10 +200,8 @@ var oslcRoutes = function(env) {
 
 	}
 
-	function verifyShape(shape, content, req){
-		
-		var file = JSON.parse(fs.readFileSync("../oslc-service/shape-files/"+shape+"-shape.json", 'utf8'));
-		var shape_info = file;
+	function verifyShape(shape_info, content, req){
+
 		var shape = shape_info["@graph"];
 		var errors = [];
 		// var base_uri_shape = "https://tools.oasis-open.org/version-control/svn/oslc-core/trunk/specs/shapes/";
@@ -163,9 +214,25 @@ var oslcRoutes = function(env) {
 		for(var i = 0; i < shape.length; i++){
 			console.log(shape[i]["@id"]);
 			console.log(shape[i]["@type"]);
+
+			var resource_type_found = false;
+
+			if(shape[i]["@type"] === "oslc:ResourceShape"){
+				for(var j = 0; j < content.length; j++){
+					if(content[j].predicate === oslc.Type){
+						if(content[j].object === shape[i]["describes"]){
+							resource_type_found = true;
+						}
+					}
+				}
+
+				if(!resource_type_found){
+					errors.push(shape[i]["name"]+ " describes is " + shape[i]["describes"]);
+				}
+			}
+
 			if(shape[i]["@type"] === "oslc:Property"){
 				console.log("EXECUTED 10");
-				var j = i;
 				var found = false;
 				for(var k = 0; k < content.length; k++){
 					
@@ -219,6 +286,7 @@ var oslcRoutes = function(env) {
 											continue;
 										}else if(content[z].object.length > shape[i]["maxSize"]){
 											errors.push(shape[i]["name"] + ": maxSize is " + shape[i]["maxSize"]);
+										}
 										
 									}else{
 										if(content[z].object > shape[i]["maxSize"]){
@@ -274,7 +342,6 @@ var oslcRoutes = function(env) {
 	function check(req, res, callback){
 		content = {};
 		content.rawBody = JSON.stringify(req.body);
-		console.log("EXECUTED");
 		
 		var index = 0;
 
@@ -293,15 +360,16 @@ var oslcRoutes = function(env) {
 				callback([err, false]);
 			}
 			var errors_to_report = new Array();
+
+			var file = JSON.parse(fs.readFileSync("../oslc-service/shape-files/"+req.fullURI+".json", 'utf8'));
 				
-			if(content.rawBody.includes('oslc:QueryCapability')){
-				errors_to_report = verifyShape('QueryCapability', triples, req);
+			if(file){
+				errors_to_report = verifyShape(file, triples, req);
 				console.log("Errors: " + errors_to_report + " " + errors_to_report.length);
 				if(errors_to_report.length > 0){
 					callback([null, errors_to_report]);
 					return;
 				}
-					
 
 			}
 			
@@ -353,58 +421,7 @@ var oslcRoutes = function(env) {
 	return subApp;
 
 }
-
 /*
-
-function findBlankNodes(blank_subject, triples, serialize){
-    var new_triples = [];
-
-    assignURI(blank_subject, function(err, uri){
-
-	     var obj = "";
-	     for(var i = 0; i < triples.length; i++){
-
-	          if(triples[i].object === blank_subject){
-	               break;
-	          }
-
-	          if(triples[i].subject === blank_subject){
-
-		          if(triples[i].object.includes("_:b")){
-		               obj = findBlankNodes(triples[i].subject, triples);
-		          }else{
-		               obj = triples[i].object;
-		          }
-	               
-	              new_triples.push({subject: blank_subject, predicate: triples[i].predicate, object: obj});
-	          }
-
-	     }
-
-	     serialize(new_triples, function(err, result){
-
-	        if(err){
-	        	console.log(err.stack);
-	            return;
-	        }
-
-	        ldpService.db.put(uri, new_triples, function(err){
-	      		if(err){
-	          		console.log(err.stack);
-	              	return;
-	           	}
-
-	           	return uri;
-	        });        
-
-	     });
-	 });
-     
-}
-
-*/
-
-
 // reserves a unique URI for a new subApp. will use slug if available,
 // but falls back to the usual naming scheme if slug is already used
 function assignURI(container, slug, callback) {
@@ -421,7 +438,7 @@ function assignURI(container, slug, callback) {
 		uniqueURI(container, callback);
 	}
 }
-
+*/
 function getBlankTripleType(content, blank_node){
 	for(var i = 0; i < content.length; i++){
 		if(content[i].subject === blank_node && content[i].predicate === oslc.Type){
@@ -432,6 +449,7 @@ function getBlankTripleType(content, blank_node){
 	return null;
 }
 
+/*
 // append 'path' to the end of a uri
 // - any query or hash in the uri is removed
 // - any special characters like / and ? in 'path' are replaced
@@ -453,467 +471,8 @@ function uniqueURI(container, callback) {
 		callback(err, candidate);
 	});
 }
-
+*/
 
 module.exports = function(env) {
 	return oslcRoutes(env);
 }
-
-/*
-			case content.includes('ServiceProvider'):
-				index = content.indexOf('ServiceProvider');
-				if(!content.includes('service', index+1)){
-					res.sendStatus(406);
-					return;
-				}
-
-				if(content.includes('oauthConfiguration')){
-					index = content.indexOf('oauthConfiguration');
-					if(content.includes('oauthconfiguration', index+1)){
-						res.sendStatus(406);
-						return;
-					}
-				}
-				break;
-
-			case content.includes('Service'):
-
-				while(content.includes('Service', index-1)){
-
-					var index = content.indexOf('Service');
-
-					var index2 = content.indexOf('Service', index);
-
-					var service = content.substring(index, index2);
-					// index = content.indexOf('Service');
-					if(!service.includes('domain', index+1)){
-						res.sendStatus(406);
-						return;
-					}
-					index+=2; // Arbitrary, designed so that the code looks for another instance of Service
-				};
-				break;
-
-			case content.includes('CreationFactory'):
-				index = content.indexOf('CreationFactory');
-				if(content.includes('label', index+1)){
-					var index = content.indexOf('label');
-					if(content.includes('label', index+1)){
-						res.sendStatus(406);
-						return;
-					}
-				}
-
-				if(!content.includes('creation', index+1)){
-					res.sendStatus(406);
-					return;
-				}else{
-					var index = content.indexOf('creation');
-					if(content.includes('creation', index)){
-						res.sendStatus(406);
-						return;
-					}
-				}
-				break;
-
-			case content.includes('QueryCapability'):
-				index = content.indexOf('QueryCapability');
-				if(content.includes('label', index+1)){
-					var index = content.indexOf('label');
-					if(content.includes('label', index+1)){
-						res.sendStatus(406);
-						return;
-					}
-				}
-
-				if(!content.includes('queryBase')){
-					res.sendStatus(406);
-					return;
-				}else{
-					var index = content.indexOf('queryBase');
-					if(content.includes('queryBase', index)){
-						res.sendStatus(406);
-						return;
-					}
-				}
-
-				if(content.includes('resourceShape')){
-					var index = content.indexOf('resourceShape');
-					if(content.includes('resourceShape', index+1)){
-						res.sendStatus(406);
-						return;
-					}
-				}
-
-				break;
-
-			case content.includes('Dialog'):
-				if(content.includes('label')){
-					var index = content.indexOf('label');
-					if(content.includes('label', index+1)){
-						res.sendStatus(406);
-						return;
-					}
-				}
-
-				if(content.includes('hintWidth')){
-					var index = content.indexOf('hintWidth');
-					if(content.includes('hintWidth', index+1)){
-						res.sendStatus(406);
-						return;
-					}
-				}
-
-				if(content.includes('hintHeight')){
-					var index = content.indexOf('hintHeight');
-					if(content.includes('hintHeight', index+1)){
-						res.sendStatus(406);
-						return;
-					}
-				}
-
-				break;
-
-			case content.includes('Publisher'):
-
-				if(content.includes('label')){
-					var index = content.indexOf('label');
-					if(content.includes('label', index+1)){
-						res.sendStatus(406);
-						return;
-					}
-				}
-
-				if(content.includes('icon')){
-					var index = content.indexOf('icon');
-					if(content.includes('icon', index+1)){
-						res.sendStatus(406);
-						return;
-					}
-				}
-
-
-				if(!content.includes('identifier')){
-					res.sendStatus(406);
-					return;
-				}else{
-					var index = content.indexOf('identifier');
-					if(content.includes('identifier', index)){
-						res.sendStatus(406);
-						return;
-					}
-				}
-
-				break;
-
-			case content.includes('PrefixDefinition'):
-
-				if(!content.includes('identifier')){
-					res.sendStatus(406);
-					return;
-				}else{
-					var index = content.indexOf('identifier');
-					if(content.includes('identifier', index)){
-						res.sendStatus(406);
-						return;
-					}
-				}
-
-				if(!content.includes('identifier')){
-					res.sendStatus(406);
-					return;
-				}else{
-					var index = content.indexOf('identifier');
-					if(content.includes('identifier', index)){
-						res.sendStatus(406);
-						return;
-					}
-				}
-
-				break;
-
-			case content.includes('OAuthConfiguration'):
-
-				if(!content.includes('oauthRequestTokenURI')){
-					res.sendStatus(406);
-					return;
-				}else{
-					var index = content.indexOf('oauthRequestTokenURI');
-					if(content.includes('oauthRequestTokenURI', index)){
-						res.sendStatus(406);
-						return;
-					}
-				}
-
-				if(!content.includes('authorizationURI')){
-					res.sendStatus(406);
-					return;
-				}else{
-					var index = content.indexOf('authorizationURI');
-					if(content.includes('authorizationURI', index)){
-						res.sendStatus(406);
-						return;
-					}
-				}
-
-				if(!content.includes('oauthAccessTokenURI')){
-					res.sendStatus(406);
-					return;
-				}else{
-					var index = content.indexOf('oauthAccessTokenURI');
-					if(content.includes('oauthAccessTokenURI', index)){
-						res.sendStatus(406);
-						return;
-					}
-				}
-
-				break;
-
-				*/
-
-/*
-
-case content.includes('Service'):
-	
-	if(!verifyShape('Service')){
-		res.sendStatus('400');
-	}
-
-	break;
-
-[
-   { subject: 'https://tools.oasis-open.org/version-control\\svn\\oslc-core\\trunk\\specs\\shapes\\QueryCapability-shape.ttl#QueryCapability',
-       predicate: 'http://www.w3.org/1999/02/22-rdf-syntax-ns#type',
-       object: 'http://open-services.net/ns\\core#ResourceShape',
-       graph: '' },
-     { subject: 'https://tools.oasis-open.org/version-control\\svn\\oslc-core\\trunk\\specs\\shapes\\QueryCapability-shape.ttl#QueryCapability',
-       predicate: 'http://purl.org/dc/terms/title',
-       object: '"Query Capability"',
-       graph: '' },
-     { subject: 'https://tools.oasis-open.org/version-control\\svn\\oslc-core\\trunk\\specs\\shapes\\QueryCapability-shape.ttl#QueryCapability',
-       predicate: 'http://purl.org/dc/terms/description',
-       object: '"A Query Capability describes a query capability, capable of querying resources via HTTP GET or POST."',
-       graph: '' },
-     { subject: 'https://tools.oasis-open.org/version-control\\svn\\oslc-core\\trunk\\specs\\shapes\\QueryCapability-shape.ttl#QueryCapability',
-       predicate: 'http://open-services.net/ns/core#describes',
-       object: 'http://open-services.net/ns\\core#QueryCapability',
-       graph: '' },
-     { subject: 'https://tools.oasis-open.org/version-control\\svn\\oslc-core\\trunk\\specs\\shapes\\QueryCapability-shape.ttl#QueryCapability',
-       predicate: 'http://open-services.net/ns/core#property',
-       object: 'https://tools.oasis-open.org/version-control\\svn\\oslc-core\\trunk\\specs\\shapes\\QueryCapability-shape.ttl#dcterms-title',
-       graph: '' },
-     { subject: 'https://tools.oasis-open.org/version-control\\svn\\oslc-core\\trunk\\specs\\shapes\\QueryCapability-shape.ttl#QueryCapability',
-       predicate: 'http://open-services.net/ns/core#property',
-       object: 'https://tools.oasis-open.org/version-control\\svn\\oslc-core\\trunk\\specs\\shapes\\QueryCapability-shape.ttl#oslc-label',
-       graph: '' },
-     { subject: 'https://tools.oasis-open.org/version-control\\svn\\oslc-core\\trunk\\specs\\shapes\\QueryCapability-shape.ttl#QueryCapability',
-       predicate: 'http://open-services.net/ns/core#property',
-       object: 'https://tools.oasis-open.org/version-control\\svn\\oslc-core\\trunk\\specs\\shapes\\QueryCapability-shape.ttl#oslc-queryBase',
-       graph: '' },
-     { subject: 'https://tools.oasis-open.org/version-control\\svn\\oslc-core\\trunk\\specs\\shapes\\QueryCapability-shape.ttl#QueryCapability',
-       predicate: 'http://open-services.net/ns/core#property',
-       object: 'https://tools.oasis-open.org/version-control\\svn\\oslc-core\\trunk\\specs\\shapes\\QueryCapability-shape.ttl#oslc-resourceShape',
-       graph: '' },
-     { subject: 'https://tools.oasis-open.org/version-control\\svn\\oslc-core\\trunk\\specs\\shapes\\QueryCapability-shape.ttl#QueryCapability',
-       predicate: 'http://open-services.net/ns/core#property',
-       object: 'https://tools.oasis-open.org/version-control\\svn\\oslc-core\\trunk\\specs\\shapes\\QueryCapability-shape.ttl#oslc-resourceType',
-       graph: '' },
-     { subject: 'https://tools.oasis-open.org/version-control\\svn\\oslc-core\\trunk\\specs\\shapes\\QueryCapability-shape.ttl#QueryCapability',
-       predicate: 'http://open-services.net/ns/core#property',
-       object: 'https://tools.oasis-open.org/version-control\\svn\\oslc-core\\trunk\\specs\\shapes\\QueryCapability-shape.ttl#oslc-usage',
-       graph: '' },
-     { subject: 'https://tools.oasis-open.org/version-control\\svn\\oslc-core\\trunk\\specs\\shapes\\QueryCapability-shape.ttl#dcterms-title',
-       predicate: 'http://www.w3.org/1999/02/22-rdf-syntax-ns#type',
-       object: 'http://open-services.net/ns\\core#Property',
-       graph: '' },
-     { subject: 'https://tools.oasis-open.org/version-control\\svn\\oslc-core\\trunk\\specs\\shapes\\QueryCapability-shape.ttl#dcterms-title',
-       predicate: 'http://open-services.net/ns/core#name',
-       object: '"title"',
-       graph: '' },
-     { subject: 'https://tools.oasis-open.org/version-control\\svn\\oslc-core\\trunk\\specs\\shapes\\QueryCapability-shape.ttl#dcterms-title',
-       predicate: 'http://open-services.net/ns/core#propertyDefinition',
-       object: 'http://purl.org/dc\\terms\\title',
-       graph: '' },
-     { subject: 'https://tools.oasis-open.org/version-control\\svn\\oslc-core\\trunk\\specs\\shapes\\QueryCapability-shape.ttl#dcterms-title',
-       predicate: 'http://open-services.net/ns/core#occurs',
-       object: 'http://open-services.net/ns\\core#Exactly-one',
-       graph: '' },
-     { subject: 'https://tools.oasis-open.org/version-control\\svn\\oslc-core\\trunk\\specs\\shapes\\QueryCapability-shape.ttl#dcterms-title',
-       predicate: 'http://purl.org/dc/terms/description',
-       object: '"Title string that could be used for display"^^http://www.w3.org/1999/02/22-rdf-syntax-ns#XMLLiteral',
-       graph: '' },
-     { subject: 'https://tools.oasis-open.org/version-control\\svn\\oslc-core\\trunk\\specs\\shapes\\QueryCapability-shape.ttl#dcterms-title',
-       predicate: 'http://open-services.net/ns/core#valueType',
-       object: 'http://www.w3.org/1999\\02\\22-rdf-syntax-ns#XMLLiteral',
-       graph: '' },
-     { subject: 'https://tools.oasis-open.org/version-control\\svn\\oslc-core\\trunk\\specs\\shapes\\QueryCapability-shape.ttl#dcterms-title',
-       predicate: 'http://open-services.net/ns/core#readOnly',
-       object: '"true"^^http://www.w3.org/2001/XMLSchema#boolean',
-       graph: '' },
-     { subject: 'https://tools.oasis-open.org/version-control\\svn\\oslc-core\\trunk\\specs\\shapes\\QueryCapability-shape.ttl#oslc-label',
-       predicate: 'http://www.w3.org/1999/02/22-rdf-syntax-ns#type',
-       object: 'http://open-services.net/ns\\core#Property',
-       graph: '' },
-     { subject: 'https://tools.oasis-open.org/version-control\\svn\\oslc-core\\trunk\\specs\\shapes\\QueryCapability-shape.ttl#oslc-label',
-       predicate: 'http://open-services.net/ns/core#name',
-       object: '"label"',
-       graph: '' },
-     { subject: 'https://tools.oasis-open.org/version-control\\svn\\oslc-core\\trunk\\specs\\shapes\\QueryCapability-shape.ttl#oslc-label',
-       predicate: 'http://open-services.net/ns/core#propertyDefinition',
-       object: 'http://open-services.net/ns\\core#label',
-       graph: '' },
-     { subject: 'https://tools.oasis-open.org/version-control\\svn\\oslc-core\\trunk\\specs\\shapes\\QueryCapability-shape.ttl#oslc-label',
-       predicate: 'http://open-services.net/ns/core#occurs',
-       object: 'http://open-services.net/ns\\core#Zero-or-one',
-       graph: '' },
-     { subject: 'https://tools.oasis-open.org/version-control\\svn\\oslc-core\\trunk\\specs\\shapes\\QueryCapability-shape.ttl#oslc-label',
-       predicate: 'http://purl.org/dc/terms/description',
-       object: '"Very short label for use in menu items."^^http://www.w3.org/1999/02/22-rdf-syntax-ns#XMLLiteral',
-       graph: '' },
-     { subject: 'https://tools.oasis-open.org/version-control\\svn\\oslc-core\\trunk\\specs\\shapes\\QueryCapability-shape.ttl#oslc-label',
-       predicate: 'http://open-services.net/ns/core#valueType',
-       object: 'http://www.w3.org/2001\\XMLSchema#string',
-       graph: '' },
-     { subject: 'https://tools.oasis-open.org/version-control\\svn\\oslc-core\\trunk\\specs\\shapes\\QueryCapability-shape.ttl#oslc-label',
-       predicate: 'http://open-services.net/ns/core#readOnly',
-       object: '"true"^^http://www.w3.org/2001/XMLSchema#boolean',
-       graph: '' },
-     { subject: 'https://tools.oasis-open.org/version-control\\svn\\oslc-core\\trunk\\specs\\shapes\\QueryCapability-shape.ttl#oslc-queryBase',
-       predicate: 'http://www.w3.org/1999/02/22-rdf-syntax-ns#type',
-       object: 'http://open-services.net/ns\\core#Property',
-       graph: '' },
-     { subject: 'https://tools.oasis-open.org/version-control\\svn\\oslc-core\\trunk\\specs\\shapes\\QueryCapability-shape.ttl#oslc-queryBase',
-       predicate: 'http://open-services.net/ns/core#name',
-       object: '"queryBase"',
-       graph: '' },
-     { subject: 'https://tools.oasis-open.org/version-control\\svn\\oslc-core\\trunk\\specs\\shapes\\QueryCapability-shape.ttl#oslc-queryBase',
-       predicate: 'http://open-services.net/ns/core#propertyDefinition',
-       object: 'http://open-services.net/ns\\core#queryBase',
-       graph: '' },
-     { subject: 'https://tools.oasis-open.org/version-control\\svn\\oslc-core\\trunk\\specs\\shapes\\QueryCapability-shape.ttl#oslc-queryBase',
-       predicate: 'http://open-services.net/ns/core#occurs',
-       object: 'http://open-services.net/ns\\core#Exactly-one',
-       graph: '' },
-     { subject: 'https://tools.oasis-open.org/version-control\\svn\\oslc-core\\trunk\\specs\\shapes\\QueryCapability-shape.ttl#oslc-queryBase',
-       predicate: 'http://purl.org/dc/terms/description',
-       object: '"The base URI to use for queries. Queries are invoked via HTTP GET on a query URI formed by appending a key=value pair to the base URI, as described in Query Capabilities section."^^http://www.w3.org/1999/02/22-rdf-syntax-ns#XMLLiteral',
-       graph: '' },
-     { subject: 'https://tools.oasis-open.org/version-control\\svn\\oslc-core\\trunk\\specs\\shapes\\QueryCapability-shape.ttl#oslc-queryBase',
-       predicate: 'http://open-services.net/ns/core#valueType',
-       object: 'http://open-services.net/ns\\core#Resource',
-       graph: '' },
-     { subject: 'https://tools.oasis-open.org/version-control\\svn\\oslc-core\\trunk\\specs\\shapes\\QueryCapability-shape.ttl#oslc-queryBase',
-       predicate: 'http://open-services.net/ns/core#representation',
-       object: 'http://open-services.net/ns\\core#Reference',
-       graph: '' },
-     { subject: 'https://tools.oasis-open.org/version-control\\svn\\oslc-core\\trunk\\specs\\shapes\\QueryCapability-shape.ttl#oslc-queryBase',
-       predicate: 'http://open-services.net/ns/core#readOnly',
-       object: '"true"^^http://www.w3.org/2001/XMLSchema#boolean',
-       graph: '' },
-     { subject: 'https://tools.oasis-open.org/version-control\\svn\\oslc-core\\trunk\\specs\\shapes\\QueryCapability-shape.ttl#oslc-resourceShape',
-       predicate: 'http://www.w3.org/1999/02/22-rdf-syntax-ns#type',
-       object: 'http://open-services.net/ns\\core#Property',
-       graph: '' },
-     { subject: 'https://tools.oasis-open.org/version-control\\svn\\oslc-core\\trunk\\specs\\shapes\\QueryCapability-shape.ttl#oslc-resourceShape',
-       predicate: 'http://open-services.net/ns/core#name',
-       object: '"resourceShape"',
-       graph: '' },
-     { subject: 'https://tools.oasis-open.org/version-control\\svn\\oslc-core\\trunk\\specs\\shapes\\QueryCapability-shape.ttl#oslc-resourceShape',
-       predicate: 'http://open-services.net/ns/core#propertyDefinition',
-       object: 'http://open-services.net/ns\\core#resourceShape',
-       graph: '' },
-     { subject: 'https://tools.oasis-open.org/version-control\\svn\\oslc-core\\trunk\\specs\\shapes\\QueryCapability-shape.ttl#oslc-resourceShape',
-       predicate: 'http://open-services.net/ns/core#range',
-       object: 'http://open-services.net/ns\\core#ResourceShape',
-       graph: '' },
-     { subject: 'https://tools.oasis-open.org/version-control\\svn\\oslc-core\\trunk\\specs\\shapes\\QueryCapability-shape.ttl#oslc-resourceShape',
-       predicate: 'http://open-services.net/ns/core#occurs',
-       object: 'http://open-services.net/ns\\core#Zero-or-one',
-       graph: '' },
-     { subject: 'https://tools.oasis-open.org/version-control\\svn\\oslc-core\\trunk\\specs\\shapes\\QueryCapability-shape.ttl#oslc-resourceShape',
-       predicate: 'http://purl.org/dc/terms/description',
-       object: '"The Query Capability SHOULD provide a Resource Shape that describes the query base URI."^^http://www.w3.org/1999/02/22-rdf-syntax-ns#XMLLiteral',
-       graph: '' },
-     { subject: 'https://tools.oasis-open.org/version-control\\svn\\oslc-core\\trunk\\specs\\shapes\\QueryCapability-shape.ttl#oslc-resourceShape',
-       predicate: 'http://open-services.net/ns/core#valueType',
-       object: 'http://open-services.net/ns\\core#Resource',
-       graph: '' },
-     { subject: 'https://tools.oasis-open.org/version-control\\svn\\oslc-core\\trunk\\specs\\shapes\\QueryCapability-shape.ttl#oslc-resourceShape',
-       predicate: 'http://open-services.net/ns/core#representation',
-       object: 'http://open-services.net/ns\\core#Reference',
-       graph: '' },
-     { subject: 'https://tools.oasis-open.org/version-control\\svn\\oslc-core\\trunk\\specs\\shapes\\QueryCapability-shape.ttl#oslc-resourceShape',
-       predicate: 'http://open-services.net/ns/core#readOnly',
-       object: '"true"^^http://www.w3.org/2001/XMLSchema#boolean',
-       graph: '' },
-     { subject: 'https://tools.oasis-open.org/version-control\\svn\\oslc-core\\trunk\\specs\\shapes\\QueryCapability-shape.ttl#oslc-resourceType',
-       predicate: 'http://www.w3.org/1999/02/22-rdf-syntax-ns#type',
-       object: 'http://open-services.net/ns\\core#Property',
-       graph: '' },
-     { subject: 'https://tools.oasis-open.org/version-control\\svn\\oslc-core\\trunk\\specs\\shapes\\QueryCapability-shape.ttl#oslc-resourceType',
-       predicate: 'http://open-services.net/ns/core#name',
-       object: '"resourceType"',
-       graph: '' },
-     { subject: 'https://tools.oasis-open.org/version-control\\svn\\oslc-core\\trunk\\specs\\shapes\\QueryCapability-shape.ttl#oslc-resourceType',
-       predicate: 'http://open-services.net/ns/core#propertyDefinition',
-       object: 'http://open-services.net/ns\\core#resourceType',
-       graph: '' },
-     { subject: 'https://tools.oasis-open.org/version-control\\svn\\oslc-core\\trunk\\specs\\shapes\\QueryCapability-shape.ttl#oslc-resourceType',
-       predicate: 'http://open-services.net/ns/core#range',
-       object: 'http://www.w3.org/2000\\01\\rdf-schema#Class',
-       graph: '' },
-     { subject: 'https://tools.oasis-open.org/version-control\\svn\\oslc-core\\trunk\\specs\\shapes\\QueryCapability-shape.ttl#oslc-resourceType',
-       predicate: 'http://open-services.net/ns/core#occurs',
-       object: 'http://open-services.net/ns\\core#Zero-or-many',
-       graph: '' },
-     { subject: 'https://tools.oasis-open.org/version-control\\svn\\oslc-core\\trunk\\specs\\shapes\\QueryCapability-shape.ttl#oslc-resourceType',
-       predicate: 'http://purl.org/dc/terms/description',
-       object: '"The expected resource type URI that will be returned with this query capability. These would be the URIs found in the result resource\'s rdf:type property."^^http://www.w3.org/1999/02/22-rdf-syntax-ns#XMLLiteral',
-       graph: '' },
-     { subject: 'https://tools.oasis-open.org/version-control\\svn\\oslc-core\\trunk\\specs\\shapes\\QueryCapability-shape.ttl#oslc-resourceType',
-       predicate: 'http://open-services.net/ns/core#valueType',
-       object: 'http://open-services.net/ns\\core#Resource',
-       graph: '' },
-     { subject: 'https://tools.oasis-open.org/version-control\\svn\\oslc-core\\trunk\\specs\\shapes\\QueryCapability-shape.ttl#oslc-resourceType',
-       predicate: 'http://open-services.net/ns/core#representation',
-       object: 'http://open-services.net/ns\\core#Reference',
-       graph: '' },
-     { subject: 'https://tools.oasis-open.org/version-control\\svn\\oslc-core\\trunk\\specs\\shapes\\QueryCapability-shape.ttl#oslc-resourceType',
-       predicate: 'http://open-services.net/ns/core#readOnly',
-       object: '"true"^^http://www.w3.org/2001/XMLSchema#boolean',
-       graph: '' },
-     { subject: 'https://tools.oasis-open.org/version-control\\svn\\oslc-core\\trunk\\specs\\shapes\\QueryCapability-shape.ttl#oslc-usage',
-       predicate: 'http://www.w3.org/1999/02/22-rdf-syntax-ns#type',
-       object: 'http://open-services.net/ns\\core#Property',
-       graph: '' },
-     { subject: 'https://tools.oasis-open.org/version-control\\svn\\oslc-core\\trunk\\specs\\shapes\\QueryCapability-shape.ttl#oslc-usage',
-       predicate: 'http://open-services.net/ns/core#name',
-       object: '"usage"',
-       graph: '' },
-     { subject: 'https://tools.oasis-open.org/version-control\\svn\\oslc-core\\trunk\\specs\\shapes\\QueryCapability-shape.ttl#oslc-usage',
-       predicate: 'http://open-services.net/ns/core#propertyDefinition',
-       object: 'http://open-services.net/ns\\core#usage',
-       graph: '' },
-     { subject: 'https://tools.oasis-open.org/version-control\\svn\\oslc-core\\trunk\\specs\\shapes\\QueryCapability-shape.ttl#oslc-usage',
-       predicate: 'http://open-services.net/ns/core#occurs',
-       object: 'http://open-services.net/ns\\core#Zero-or-many',
-       graph: '' },
-     { subject: 'https://tools.oasis-open.org/version-control\\svn\\oslc-core\\trunk\\specs\\shapes\\QueryCapability-shape.ttl#oslc-usage',
-       predicate: 'http://purl.org/dc/terms/description',
-       object: '"An identifier URI for the domain specified usage of this query capability. If a service provides multiple query capabilities, it may designate the primary or default one that should be used with a property value of oslc:default"^^http://www.w3.org/1999/02/22-rdf-syntax-ns#XMLLiteral',
-       graph: '' },
-     { subject: 'https://tools.oasis-open.org/version-control\\svn\\oslc-core\\trunk\\specs\\shapes\\QueryCapability-shape.ttl#oslc-usage',
-       predicate: 'http://open-services.net/ns/core#valueType',
-       object: 'http://open-services.net/ns\\core#Resource',
-       graph: '' },
-     { subject: 'https://tools.oasis-open.org/version-control\\svn\\oslc-core\\trunk\\specs\\shapes\\QueryCapability-shape.ttl#oslc-usage',
-       predicate: 'http://open-services.net/ns/core#representation',
-       object: 'http://open-services.net/ns\\core#Reference',
-       graph: '' },
-     { subject: 'https://tools.oasis-open.org/version-control\\svn\\oslc-core\\trunk\\specs\\shapes\\QueryCapability-shape.ttl#oslc-usage',
-       predicate: 'http://open-services.net/ns/core#readOnly',
-       object: '"true"^^http://www.w3.org/2001/XMLSchema#boolean',
-       graph: '' } ]
-
-
-*/
