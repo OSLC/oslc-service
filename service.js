@@ -20,6 +20,9 @@
 
 var express = require('express');
 var fs = require('fs');
+var xml2js = require('xml2js');
+var xml_parser = xml2js.parseString; // Used to parse SPARQL results
+
 /*
 var rawBody = function(req, res, next) {
 	req.rawBody = '';
@@ -55,7 +58,7 @@ var oslcRoutes = function(env) {
 	var subApp = express();
 	// subApp.use(rawBody);
 	// anything those services don't handle will be passed to this service next
-	var resource = subApp.route(env.context);
+	var resource = subApp.route(env.context+"*");
 
 	// route any requests matching the LDP context (defaults to /r/*)
 	resource.all(function(req, res, next) {
@@ -84,30 +87,45 @@ var oslcRoutes = function(env) {
 		next();
 	});
 
+	/*
+		Searches for resource that contains the URL in order to check that
+		it exists using a SPARQL query. If yes, conducts a check to make sure
+		the content in the POST complies with the shape associated with the creation URI.
+		This shape is saved locally during the initialization of the Jena database.
+	*/
 	resource.post(function(req, res, next) {
 		console.log('OSLC POST request on:'+req.path);
 
-		ldpService.db.query("SELECT%20DISTINCT%20%3Fg%20WHERE%20%7BGRAPH%20%3Fg%20%7B%3Fs%20http%3A%2F%2Fopen-services.net%2Fns%2Fcore%23creation%20"+req.fullURI+"%20%7D%7D", "application/ld+json", function(err, ires){
-			if(res.statusCode === 404){
+		var the_query = "SELECT ?g WHERE { GRAPH ?g { ?s <http://open-services.net/ns/core#creation> <http://IBM762-PC09JBU1:3000"+req.originalUrl+"> } }";
+		
+		ldpService.db.query(encodeURIComponent(the_query), "application/ld+json", function(err, ires){
+			if(ires.statusCode === 404){
 				console.error("Creation URI does not exist");
 				res.sendStatus(404);
+			}else if(ires.statusCode === 400){
+				console.error("Error with SPARQL query");
+				res.sendStatus(400);
 			}
+
+			console.log("RESULT");
 
 			check(req, res, function(result){
 				console.log("HERE " + result);
 				if(result[0]){
-					res.sendStatus('500');
-				}else if(result[1].length > 0){
-					console.log("Not correct format for the inputted resource");
-					res.sendStatus('400');
-				}
-				// console.log("EXECUTED9 " + next.stack);
-				next();
-				
+						res.sendStatus('500');
+					}else if(result[1].length > 0){
+						console.log("Not correct format for the inputted resource");
+						res.sendStatus('400');
+					}
+					// console.log("EXECUTED9 " + next.stack);
+					next();
+					
+				});
+
 			});
 
 
-		})
+		});
 		
 	});
 
@@ -121,24 +139,112 @@ var oslcRoutes = function(env) {
 
 	resource.get(function(req, res, next) {
 		console.log('OSLC GET request on:'+req.path);
-
-		if(req.fullURI.includes("?")){
-			var base = req.fullURI.substring(0, req.fullURI.indexOf('?'));
+		console.log(req.originalUrl);
+		if(req.originalUrl.includes("?")){
+			var base = req.originalUrl.substring(0, req.originalUrl.indexOf('?'));
 			// Need to replace '/' w/ %2F to be in compliance w/ URI
+			console.log("QUERY " + base);
 			ldpService.db.query("SELECT%20DISTINCT%20%3Fg%20WHERE%20%7BGRAPH%20%3Fg%20%7B%3Fs%20http%3A%2F%2Fopen-services.net%2Fns%2Fcore%23queryBase%20"+base+"%20%7D%7D", "application/ld+json", function(err, ires){
 				if(ires.statusCode === 404){
 					console.error("Query URI does not exist");
 					res.sendStatus(404);
 				}
 
-				var query = req.fullURI.substring(req.fullURI.indexOf('?')+1, req.fullURI.length);
-				var sparql_query = "";
+				var query = req.originalUrl.substring(req.originalUrl.indexOf('?')+1, req.originalUrl.length);
+				var sparql_query_select = "SELECT ";
+				var sparql_query_where = "WHERE GRAPH ?g {";
+				var sparql_query_prefix = "";
+				var sparql_query_orderBy = "ORDER BY ";
 
 				// Construct SPARQL Query
-				/*
+				// Use resource shapes to determine that vocab used is accurate
+				
 
+					if(query.includes("oslc.prefix")){
+	
+						index = query.indexOf("oslc.select");
+
+						for(var i = index; i < query.length && query.charAt(i) !== '&'; i++){
+
+							if(query.charAt(i) === '=' || query.charAt(i) === '>' || query.charAt(i) === '<'){
+									var resource = query.substring(index, i);
+									index_follow = i;
+									// check if param is valid
+									// http://example.com/bugs?oslc.where=cm:severity="high" and dcterms:created>"2010-04-01"
+						
+									while(query.charAt(index_follow) != '&' && index_follow < query.length && query.charAt(index_follow) != ',' && query.charAt(index_follow) != '}'){
+	
+										index_follow++;
+
+									}
+
+									sparql_query+="PREFIX "+resource+": " + query.substring(i, index_follow)+" ";
+
+									i = index_follow;
+									index = i;
+								}	
+						}
+
+					}
+
+					
 					if(query.includes("oslc.select")){
-						index = query.indexOf('=')
+						index = query.indexOf("oslc.select")+"oslc.select=".length;
+						var stack = new Array(); // Used to add to WHERE clause if there are nested properties
+
+						var open_curl = 0;
+						var close_curl = 0;
+						
+						stack.push("?s");
+						var resource = "";
+						for(var i = index+1; i < query.length && query.charAt(i) !== '&'; i++){
+
+							if(query.charAt(i) === ','){
+								resource = query.substring(index, i);
+								sparql_query_select += "?"+resource+" ";
+								sparql_query_where += stack.peek() + " " + resource + " ?" + resource;
+								index = i;
+
+								// check if param is valid
+								// http://example.com/bugs?oslc.where=cm:severity="high" and dcterms:created>"2010-04-01"
+								// http://example.com/bugs?oslc.select=dcterms:created,dcterms:creator{foaf:familyName}&oslc.where=cm:severity="high"
+								// 
+								// SELECT ?dcterms:created, ?foaf:familyName WHERE GRAPH ?g {?s cm:severity "high". ?s dcterms:created ?dcterms:created. ?s dcterms:creator ?dcterms:creator. ?dcterms:creator foaf:familyName ?foaf:familyName}
+								// 
+									
+							}
+
+							// Check that # of '{' === # of '}'
+							// Assumption is that there needs to be a resource before the nested property in order to use it
+							if(query.charAt(i) === '{'){
+								if(query.charAt(i+1) === '{'){
+									console.error("No identifiable property for the nested property");
+									res.send("401");
+								}
+								resource = query.substring(index, i);
+								index = i;
+								stack.push("?"+resource);
+								
+							}
+
+							if(query.charAt(i) === '}'){
+
+								if(stack.peek() !== "?s"){
+									resource = query.substring(index, i);
+									sparql_query_select += " ?"+resource;
+									sparql_query_where += stack.peek() + " " + resource + " ?" + resource;
+									stack.pop();
+									index = i;
+									
+								}
+							}
+
+						}
+
+						if(open_curl > close_curl || close_curl > open_curl){
+							console.error("Invalid query request");
+							res.send("401");
+						}
 
 					}
 
@@ -147,17 +253,108 @@ var oslcRoutes = function(env) {
 					}
 
 					if(query.include("oslc.where")){
-						var index = query.indexOf("oslc.where")+"oslc.where".length;
-						sparql_query += "WHERE GRAPH " + uri + " {?s " + +"}";
+						var pred;
+						var subj;
+
+						var index = query.indexOf("oslc.where")+"oslc.where=".length;
+						var index_follow;
+						for(var i = index; i < query.length && query.charAt(i) !== '&'; i++){
+
+								if(query.charAt(i) === '=' || query.charAt(i) === '>' || query.charAt(i) === '<'){
+									var resource = query.substring(index, i);
+									index_follow = i;
+									// check if param is valid
+									// http://example.com/bugs?oslc.where=cm:severity="high" and dcterms:created>"2010-04-01"
+						
+									while(query.charAt(index_follow) != '&' && index_follow < query.length && query.charAt(index_follow) != ' ' && query.charAt(index_follow) != '}'){
+	
+										index_follow++;
+
+									}
+
+									
+									sparql_query_where+="?s " + resource + " " + query.substring(i, index_follow) + " . ";
+									i = index_follow;
+									index = i;
+								}
+
+								if(query.charAt(i) === ' '){
+									if(query.substring(i+1, i+4) === "and"){
+										index = i+5;
+									}
+								}
+
+								if(query.charAt(i) === '{'){
+									var resource = query.substring(index, i);
+									sparql_query_where += "?s " + resource + " ?o . ";
+									// do recursion, but utnil '}' is executed, return last index
+									index = i+1;
+								}
+
+
+						}
+
+						sparql_query_where += "} ";
+
+						
 					}
 
-				*/
+					if(query.includes(oslc.orderBy)){
+	
+						var index = query.indexOf("oslc.orderBy")+"oslc.orderBy=".length;
+						var index_follow;
+						for(var i = index; i < query.length && query.charAt(i) !== '&'; i++){
 
-				
+							if(query.charAt(i) === '+'){
+
+								index = i;
+								while(index != ',' || index != '}' || index != '&'){
+									index++;
+								}
+
+								sparql_query_orderBy += "ASC[?" + query.substring(i+1, index) + "]";
+								i = index;
+
+							}else if(query.charAt(i) === '-'){
+								index = i;
+								while(index != ',' || index != '}' || index != '&'){
+									index++;
+								}
+
+								sparql_query_orderBy += "DESC[?" + query.substring(i+1, index) + "] ";
+								i = index;
+
+							}else{
+								if(query.charAt(i) === '{'){
+									index = i+1;
+								}
+
+								if(query.charAt(i) === ','){
+									sparql_orderBy += "?"+query.substring(index, i)+" ";
+									index = i;
+								}
+							}
+
+						}
+					}
+
+					console.log(sparql_query_prefix + sparql_query_select + sparql_query_where + sparql_query_orderBy);
+					console.log(encodeURIComponent(sparql_query_prefix + sparql_query_select + sparql_query_where + sparql_query_orderBy));
+
+					ldpService.db.query(encodeURIComponent(sparql_query_prefix + sparql_query_select + sparql_query_where + sparql_query_orderBy), "application/ld+json", function(err, ires){
+
+						console.log(ires.body);
+						console.log(typeof ires.body);
+						res.sendStatus(200);
+
+					});
+
 			});
+
+		}else{
+			next();
 		}
 
-		next();
 	});
 
 	resource.put(function(req, res, next) {
@@ -193,7 +390,7 @@ var oslcRoutes = function(env) {
 		
 			if(shape["@graph"][i]["@id"] === oslc.Property){
 				properties.add(shape["@graph"][i]["name"]);			
-			}
+			} 
 		}
 
 		return properties;
@@ -361,7 +558,7 @@ var oslcRoutes = function(env) {
 			}
 			var errors_to_report = new Array();
 
-			var file = JSON.parse(fs.readFileSync("../oslc-service/shape-files/"+req.fullURI+".json", 'utf8'));
+			var file = JSON.parse(fs.readFileSync("../oslc-service/shape-files/"+req.originalUrl+".json", 'utf8'));
 				
 			if(file){
 				errors_to_report = verifyShape(file, triples, req);
@@ -412,12 +609,13 @@ var oslcRoutes = function(env) {
 
 		// remove special characters from the string (e.g., '/', '..', '?')
 		var lastSegment = path.replace(/[^\w\s\-_]/gi, '');
-		return uri + encodeURIComponent(lastSegment);
+		return uri + encodeURIComponentComponent(lastSegment);
 	}
 
 	// after the OSLC service, route requests to the LDP service
 	var routes = ldpService(env);
 	subApp.use(routes);
+	console.log("OSLC Set-Up Complete");
 	return subApp;
 
 }
@@ -461,7 +659,7 @@ function addPath(uri, path) {
 
 	// remove special characters from the string (e.g., '/', '..', '?')
 	var lastSegment = path.replace(/[^\w\s\-_]/gi, '');
-	return uri + encodeURIComponent(lastSegment);
+	return uri + encodeURIComponentComponent(lastSegment);
 }
 
 // generates and reserves a unique URI with base URI 'container'
