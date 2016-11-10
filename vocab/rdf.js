@@ -29,3 +29,4 @@ define('prefix', 'rdf');
 
 // Properties
 define('type', ns + 'type');
+define('resource', ns+'resource')

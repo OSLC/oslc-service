@@ -74,4 +74,6 @@ define('representation', oslc+'representation');
 define('Inline', oslc+'Inline');
 define('Reference', oslc+'Reference');
 
+define('results', oslc+'results');
+
 
