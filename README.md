@@ -15,7 +15,18 @@ Module planning, maintenance and issues can be see at at the [oslc-service](http
 
 Install [Node.js](http://nodejs.org). 
 
-Install and start [MongoDB](http://docs.mongodb.org/manual/installation/).
+Start [Jena](https://jena.apache.org/download/index.cgi). Download apache-jena-fuseki-2.4.1.tar.gz under Apache Jena Fuseki and unzip it.
+
+To run Jena, enter the following code
+
+	$ fuseki-server --mem /ldp
+
+/ldp is a datastore that allows the request to access the resources on the db. It can be named in any other way. --mem allows for temporary storage of data
+for that instant. For the data to permantently store data (and to update data), the following code should be ran.
+
+	$ fuseki-server --update --loc=<path to db> /ldp
+
+--update allows the user to update resources, while --loc tells the location of the stored items for persistence.
 
 Install express.js and create a sample express app
 
@@ -26,9 +37,9 @@ Install express.js and create a sample express app
 
 	"dependencies": {"oslc-service": "~0.0.1"},
 
-3) Edit app.js and add whatever Express middleware you need including oslc-service. oslc-service also utilizes ldp-service which provides access to a MongoDB database in case additional middleware needs direct access to the database.
+3) Edit app.js and add whatever Express middleware you need including ldp-service. ldp-service-jena also provides access to its Apache Jena database in case additional middleware needs direct access to the database. ldp-service-jena has not been published to npm yet, so it will need to be access locally.
 
-	var ldpService = require('ldp-service');
+	var ldpService = require('./ldp-service-jena');
 	app.use(ldpService());
 	var db = ldpService.db; // incase further middleware needs access to the database
 
