@@ -20,8 +20,7 @@
 
 var express = require('express');
 var fs = require('fs');
-var xml2js = require('xml2js');
-var xml_parser = xml2js.parseString; // Used to parse SPARQL results
+var path = require("path");
 
 /*
 var rawBody = function(req, res, next) {
@@ -58,7 +57,7 @@ var oslcRoutes = function(env) {
 	var subApp = express();
 	// subApp.use(rawBody);
 	// anything those services don't handle will be passed to this service next
-	var resource = subApp.route(env.context+"*");
+	var resource = subApp.route(env.context+'*');
 
 	// route any requests matching the LDP context (defaults to /r/*)
 	resource.all(function(req, res, next) {
@@ -99,6 +98,22 @@ var oslcRoutes = function(env) {
 		var the_query = "SELECT ?g WHERE { GRAPH ?g { ?s <http://open-services.net/ns/core#creation> <http://IBM762-PC09JBU1:3000"+req.originalUrl+"> } }";
 		
 		console.log(JSON.stringify(req.body));
+
+		if(req.baseUrl.includes("?compact")){
+			ldpService.db.put(req.baseUrl, req.body, "application/ld+json", function(err, ires){
+
+				if(err){
+					res.sendStatus(500);
+				}
+
+				if(ires.statusCode === 200){
+					res.sendStatus(200);
+				}else{
+					res.sendStatus(ires.statusCode);
+				}
+			});
+		}
+
 		ldpService.db.query(encodeURIComponent(the_query), function(err, ires){
 			if(ires.statusCode === 404){
 				console.error("Creation URI does not exist");
@@ -118,7 +133,8 @@ var oslcRoutes = function(env) {
 					console.log("Not correct format for the inputted resource");
 					res.sendStatus('400');
 				}
-				// console.log("EXECUTED9 " + next.stack);
+				// console.log("EXECUTED9 " + next.stack);				
+
 				next();
 					
 			});
@@ -510,14 +526,64 @@ var oslcRoutes = function(env) {
 
 	}
 
+	var resource_uri = undefined;
+	subApp.get('/ResourceInfo', function(req, res) {
+
+		ldpService.db.get(resource_uri, "application/ld+json", function(err, ires){
+
+			res.sendJSON(ires.body);
+
+		});
+
+	});
+
 	resource.get(function(req, res, next) {
 		console.log('OSLC GET request on:'+req.path);
 		console.log(req.originalUrl);
 
 		// Implements UI Preview
-		if(req['Accept'] === 'application/x-oslc-compact-json'){
+		if(req['Accept'] === 'application/x-oslc-compact+json'){
 
-			
+			var compact = {};
+
+			ldpService.db.get(req.baseUrl, "application/ld+json", function(err, ires){
+				compact.title = ires.body["name"];
+				compact.smallPreview = {};
+				compact.largePreview = {};
+
+				compact.smallPreview.hintWidth = "45ex";
+				compact.smallPreview.hintHeight = "20ex";
+				compact.document = req.baseUrl+"?preview=small";
+
+				compact.largePreview.hintWidth = "60ex";
+				compact.largePreview.hintHeight = "30ex";
+				compact.document = req.baseUrl+"?preview=large";
+
+				res.body = compact;
+
+				res.sendStatus(200);
+
+			});
+
+		}else if(req.originalUrl.includes("?preview=large")){
+
+			resource_uri = req.baseUrl.substring(0, req.baseUrl.indexOf('?'));
+			res.send("./preview/preview-large.html");
+
+		}else if(req.originalUrl.includes("?preview=small")){
+
+			resource_uri = req.baseUrl.substring(0, req.baseUrl.indexOf('?'));
+			res.send("./preview/preview-small.html");
+
+		}else if(req.originalUrl.includes("/selection-dialog")){
+			res.set('Content-Type', 'text/html');
+			res.send(path.resolve("./dialog/dialog-select.html"));
+
+		}else if(req.originalUrl.includes("creation-dialog")){
+			console.log("CREATION");
+			res.set('Content-Type', 'text/html');
+			console.log(path.resolve("./dialog/dialog-create.html"));
+			res.sendFile(path.resolve("./dialog/dialog-create.html"));
 
 		}else if(req.originalUrl.includes("?")){
 			var base = req.originalUrl.substring(0, req.originalUrl.indexOf('?'));
