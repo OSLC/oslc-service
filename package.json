@@ -10,7 +10,6 @@
     "express": "~4.13.4",
     "n3": "~0.4.5",
     "jsonld": "~0.4.2",
-    "mongodb": "~2.0.49",
     "ldp-service": "~0.0.2"
   },
   "engines": {
