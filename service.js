@@ -46,14 +46,8 @@ var oslcRoutes = function(env) {
 	var json = require('./jsonld.js');
 	var turtle = require('./turtle.js');
 	var crypto = require('crypto'); // for MD5 (ETags)
-	var ldpService = undefined;
-
-	if(env.dbType === 'Jena'){
-		ldpService = require('../ldp-service-jena'); // OSLC is built on LDP. Uses the service that incorporates Apache Jena as the DB
-	}else{
-		ldpService = require('ldp-service');
-	}
-
+	var ldpService = require('../ldp-service-jena'); // OSLC is built on LDP. Uses the service that incorporates Apache Jena as the DB
+	
 	var subApp = express();
 	// subApp.use(rawBody);
 	// anything those services don't handle will be passed to this service next
@@ -179,338 +173,338 @@ var oslcRoutes = function(env) {
 	function queryResource(shape, req, res){
 
 		var query = decode.substring(decode.indexOf('?')+1, decode.length);
-					var sparql_query_select = "SELECT ?g ";
-					var sparql_query_where = "WHERE { GRAPH ?g { ";
-					var sparql_query_prefix = "";
-					var sparql_query_orderBy = "";
+		var sparql_query_select = "SELECT ?g ";
+		var sparql_query_where = "WHERE { GRAPH ?g { ";
+		var sparql_query_prefix = "";
+		var sparql_query_orderBy = "";
 
-					// Construct SPARQL Query
-					// Use resource shapes to determine that vocab used is accurate
+		// Construct SPARQL Query
+		// Use resource shapes to determine that vocab used is accurate
 					
 
-						if(query.includes("oslc.prefix")){
+		if(query.includes("oslc.prefix")){
 		
-							index = query.indexOf("oslc.prefix")+"oslc.prefix".length+1;
+			index = query.indexOf("oslc.prefix")+"oslc.prefix".length+1;
 
-							for(var i = index; i < query.length && query.charAt(i) !== '&'; i++){
+			for(var i = index; i < query.length && query.charAt(i) !== '&'; i++){
 
-								if(query.charAt(i) === '=' || query.charAt(i) === '>' || query.charAt(i) === '<'){
-										var resource = query.substring(index, i);
-										index_follow = i+1;
-										// check if param is valid
-										// http://example.com/bugs?oslc.where=cm:severity="high" and dcterms:created>"2010-04-01"
+				if(query.charAt(i) === '=' || query.charAt(i) === '>' || query.charAt(i) === '<'){
+					var resource = query.substring(index, i);
+					index_follow = i+1;
+					// check if param is valid
+					// http://example.com/bugs?oslc.where=cm:severity="high" and dcterms:created>"2010-04-01"
 							
-										while(query.charAt(index_follow) != '&' && index_follow < query.length && query.charAt(index_follow) != ',' && query.charAt(index_follow) != '}'){
+					while(query.charAt(index_follow) != '&' && index_follow < query.length && query.charAt(index_follow) != ',' && query.charAt(index_follow) != '}'){
 		
-											index_follow++;
+						index_follow++;
 
-										}
+					}
 
-										sparql_query_prefix+="PREFIX "+resource+": " + query.substring(i+1, index_follow)+" ";
+					sparql_query_prefix+="PREFIX "+resource+": " + query.substring(i+1, index_follow)+" ";
 
-										if(query.charAt(index_follow) === '&'){
-											break;
-										}
-										i = index_follow;
-										index = i+1;
+					if(query.charAt(index_follow) === '&'){
+						break;
+					}
+					i = index_follow;
+					index = i+1;
 
 
-								}	
-							}
+				}	
+			}
 
-						}
+		}
 
 						
-						if(query.includes("oslc.select")){
-							index = query.indexOf("oslc.select")+"oslc.select=".length;
-							var stack = new Array(); // Used to add to WHERE clause if there are nested properties
+		if(query.includes("oslc.select")){
+			index = query.indexOf("oslc.select")+"oslc.select=".length;
+			var stack = new Array(); // Used to add to WHERE clause if there are nested properties
 
-							var open_curl = 0;
-							var close_curl = 0;
+			var open_curl = 0;
+			var close_curl = 0;
 							
-							stack.push("?s");
-							var resource = "";
-							for(var i = index+1; i < query.length && query.charAt(i) !== '&'; i++){
+			stack.push("?s");
+			var resource = "";
+			for(var i = index+1; i < query.length && query.charAt(i) !== '&'; i++){
 
-								if(query.charAt(i) === ','){
-									resource = query.substring(index, i);
+				if(query.charAt(i) === ','){
+					resource = query.substring(index, i);
 
-									// Check shape to see if resource is valid
+					// Check shape to see if resource is valid
 
-									//if(validResource(shape, resource)){
-										sparql_query_select += "?"+resource.replace(':','_')+" ";
-										sparql_query_where += stack[stack.length-1] + " " + resource + " ?" + resource.replace(':', '_') + " . ";
-										index = i;
-									//}else{
-									//	return;
-									//}
-									// End check
+					//if(validResource(shape, resource)){
+					sparql_query_select += "?"+resource.replace(':','_')+" ";
+					sparql_query_where += stack[stack.length-1] + " " + resource + " ?" + resource.replace(':', '_') + " . ";
+					index = i;
+					//}else{
+					//	return;
+					//}
+					// End check
 									
-									// http://localhost:3000/r/tasks?oslc.prefix%3Dcm%3D%3Chttp%3A%2F%2Fqm.example.com%2Fns%3E%2Cdcterms%3D%3Chttp%3A%2F%2Fdcterms.example.com%3E%26oslc.select%3Ddcterms%3Acreated%2Cdcterms%3Acreator%26oslc.where%3Dcm%3Aseverity%3D%22high%22
+					// http://localhost:3000/r/tasks?oslc.prefix%3Dcm%3D%3Chttp%3A%2F%2Fqm.example.com%2Fns%3E%2Cdcterms%3D%3Chttp%3A%2F%2Fdcterms.example.com%3E%26oslc.select%3Ddcterms%3Acreated%2Cdcterms%3Acreator%26oslc.where%3Dcm%3Aseverity%3D%22high%22
 
-									// check if param is valid
-									// http://example.com/bugs?oslc.where=cm:severity="high" and dcterms:created>"2010-04-01"
-									// http://example.com/bugs?oslc.select=dcterms:created,dcterms:creator{foaf:familyName}&oslc.where=cm:severity="high"
-									// 
-									// SELECT ?dcterms:created, ?foaf:familyName WHERE GRAPH ?g {?s cm:severity "high". ?s dcterms:created ?dcterms:created. ?s dcterms:creator ?dcterms:creator. ?dcterms:creator foaf:familyName ?foaf:familyName}
-									// 
+					// check if param is valid
+					// http://example.com/bugs?oslc.where=cm:severity="high" and dcterms:created>"2010-04-01"
+					// http://example.com/bugs?oslc.select=dcterms:created,dcterms:creator{foaf:familyName}&oslc.where=cm:severity="high"
+					// 
+					// SELECT ?dcterms:created, ?foaf:familyName WHERE GRAPH ?g {?s cm:severity "high". ?s dcterms:created ?dcterms:created. ?s dcterms:creator ?dcterms:creator. ?dcterms:creator foaf:familyName ?foaf:familyName}
+					// 
 										
-								}
+				}
 
-								// Check that # of '{' === # of '}'
-								// Assumption is that there needs to be a resource before the nested property in order to use it
-								if(query.charAt(i) === '{'){
-									if(query.charAt(i+1) === '{'){
-										console.error("No identifiable property for the nested property");
-										res.send("401");
-									}
-									resource = query.substring(index, i).replace(':','_');
-									index = i;
-									stack.push("?"+resource);
+				// Check that # of '{' === # of '}'
+				// Assumption is that there needs to be a resource before the nested property in order to use it
+				if(query.charAt(i) === '{'){
+					if(query.charAt(i+1) === '{'){
+						console.error("No identifiable property for the nested property");
+						res.send("401");
+					}
+					resource = query.substring(index, i).replace(':','_');
+					index = i;
+					stack.push("?"+resource);
 									
-								}
+				}
 
-								if(query.charAt(i) === '}'){
+				if(query.charAt(i) === '}'){
 
-									if(stack[stack.length-1] !== "?s"){
-										resource = query.substring(index, i);
-										sparql_query_select += " ?"+resource;
-										sparql_query_where += stack[stack.length-1] + " " + resource + " ?" + resource.replace(':','_');
-										stack.pop();
-										index = i;
+					if(stack[stack.length-1] !== "?s"){
+						resource = query.substring(index, i);
+						sparql_query_select += " ?"+resource;
+						sparql_query_where += stack[stack.length-1] + " " + resource + " ?" + resource.replace(':','_');
+						stack.pop();
+						index = i;
 										
-									}
-								}
+					}
+				}
 
-							}
+			}
 
-							if(open_curl > close_curl || close_curl > open_curl){
-								console.error("Invalid query request");
-								res.send("401");
-							}
+			if(open_curl > close_curl || close_curl > open_curl){
+				console.error("Invalid query request");
+				res.send("401");
+			}
 
-						}
+		}
 
-						if(query.includes("oslc.where")){
+		if(query.includes("oslc.where")){
 							
-							var index = query.indexOf("oslc.where")+"oslc.where=".length;
-							var index_follow;
-							var filters = [];
-							console.log(index);
-							for(var i = index; i < query.length && query.charAt(i) !== '&'; i++){
+			var index = query.indexOf("oslc.where")+"oslc.where=".length;
+			var index_follow;
+			var filters = [];
+			console.log(index);
+			for(var i = index; i < query.length && query.charAt(i) !== '&'; i++){
 
-									if(query.charAt(i) === '=' || query.charAt(i) === ' ' || query.charAt(i) === '<' || query.charAt(i) === '>' || query.charAt(i) === 
+				if(query.charAt(i) === '=' || query.charAt(i) === ' ' || query.charAt(i) === '<' || query.charAt(i) === '>' || query.charAt(i) === 
 										'!'){
-										console.log(query.charAt(i));
-										var resource = query.substring(index, i);
+					console.log(query.charAt(i));
+					var resource = query.substring(index, i);
 
-										//if(validResource(shape, resource)){
-											index_follow = i;
-										//}else{
-										//	return;
-										//}
-										// check if param is valid
-										// http://example.com/bugs?oslc.where=cm:severity="high" and dcterms:created>"2010-04-01"
-										// oslc.prefix=cm=<http://qm.example.com/ns>,dcterms=<http://dcterms.example.com>&oslc.select=dcterms:created,dcterms:creator&oslc.where=cm:severity="high"&oslc.orderBy=-dcterms:created
+					//if(validResource(shape, resource)){
+					index_follow = i;
+					//}else{
+					//	return;
+					//}
+					// check if param is valid
+					// http://example.com/bugs?oslc.where=cm:severity="high" and dcterms:created>"2010-04-01"
+					// oslc.prefix=cm=<http://qm.example.com/ns>,dcterms=<http://dcterms.example.com>&oslc.select=dcterms:created,dcterms:creator&oslc.where=cm:severity="high"&oslc.orderBy=-dcterms:created
 
 
-										while(query.charAt(index_follow) != '&' && index_follow < query.length && query.charAt(index_follow) != ' ' && query.charAt(index_follow) != '}'){
+					while(query.charAt(index_follow) != '&' && index_follow < query.length && query.charAt(index_follow) != ' ' && query.charAt(index_follow) != '}'){
 		
-											index_follow++;
+						index_follow++;
 
-										}
+					}
 
 
 
-										if(!sparql_query_where.includes("?s " + resource + " " + query.substring(i+1, index_follow) + " . ")){
-											sparql_query_where+="?s " + resource + " " + query.substring(i+1, index_follow) + " . ";
+					if(!sparql_query_where.includes("?s " + resource + " " + query.substring(i+1, index_follow) + " . ")){
+						sparql_query_where+="?s " + resource + " " + query.substring(i+1, index_follow) + " . ";
 										
-										}
+					}
 
-										/*
+					/*
 
-										if a comparison is in use other than =
+						if a comparison is in use other than =
 
-										if(!sparql_query_where.includes("?s " + resource + " " + query.substring(i+1, index_follow) + " . ")){
-											sparql_query_where+="?s " + resource + " " + resource.replace(':','_') + " . ";
-										}
+						if(!sparql_query_where.includes("?s " + resource + " " + query.substring(i+1, index_follow) + " . ")){
+							sparql_query_where+="?s " + resource + " " + resource.replace(':','_') + " . ";
+						}
 										
-										filter.push(resource.replace(':','_')+query.charAt(i)+query.substring(i+1, index_follow));
+						filter.push(resource.replace(':','_')+query.charAt(i)+query.substring(i+1, index_follow));
 
-										*/
+					*/
 
-										if(query.charAt(index_follow) === '&'){
-											break;
-										}
+					if(query.charAt(index_follow) === '&'){
+						break;
+					}
 
-										i = index_follow;
-										index = i;
-									}
+					i = index_follow;
+					index = i;
+				}
 
-									if(query.charAt(i) === ' '){
-										if(query.substring(i+1, i+4) === "and"){
-											i+=5;
-											index = i;
+				if(query.charAt(i) === ' '){
+					if(query.substring(i+1, i+4) === "and"){
+						i+=5;
+						index = i;
 											
-										}
-									}
+					}
+				}
 
-									if(query.charAt(i) === '{'){
+				if(query.charAt(i) === '{'){
 
-										var resource = query.substring(index, i).replace(':','_');
+					var resource = query.substring(index, i).replace(':','_');
 
-										//if(validResource(shape, resource)){
-											sparql_query_where += "?s " + resource + " ?o . ";
-										// do recursion, but utnil '}' is executed, return last index
-											index = i+1;
-										//}else{
-										//	return;
-										//}
+					//if(validResource(shape, resource)){
+					sparql_query_where += "?s " + resource + " ?o . ";
+					// do recursion, but utnil '}' is executed, return last index
+					index = i+1;
+					//}else{
+					//	return;
+					//}
 										
-									}
+				}
 
 
-							}
+			}
 
-							if(filter.length > 0){
+			if(filter.length > 0){
 
-								sparql_query_where+="FILTER "+filter[0];
+				sparql_query_where+="FILTER "+filter[0];
 
-								for(var i = 1; i < filter.length; i++){
-									sparql_query_where+=" && "+filter[i];
-								}
+				for(var i = 1; i < filter.length; i++){
+					sparql_query_where+=" && "+filter[i];
+				}
 
-							}
+			}
 
-							sparql_query_where += "} } ";
+			sparql_query_where += "} } ";
 
 							
+			}
+
+			if(query.includes("oslc.orderBy")){
+
+				console.log("ORDER BY");
+
+				sparql_query_orderBy += "ORDER BY ";
+		
+				var index = query.indexOf("oslc.orderBy")+"oslc.orderBy=".length;
+				var index_follow;
+				for(var i = index; i < query.length && query.charAt(i) !== '&'; i++){
+
+					if(query.charAt(i) === '+'){
+
+						index = i;
+						while(index != ',' && index != '}' && index != '&' && index < query.length){
+							index++;
 						}
 
-						if(query.includes("oslc.orderBy")){
+						sparql_query_orderBy += "ASC(?" + query.substring(i+1, index).replace(':','_') + ") ";
+						i = index;
 
-							console.log("ORDER BY");
-
-							sparql_query_orderBy += "ORDER BY ";
-		
-							var index = query.indexOf("oslc.orderBy")+"oslc.orderBy=".length;
-							var index_follow;
-							for(var i = index; i < query.length && query.charAt(i) !== '&'; i++){
-
-								if(query.charAt(i) === '+'){
-
-									index = i;
-									while(index != ',' && index != '}' && index != '&' && index < query.length){
-										index++;
-									}
-
-									sparql_query_orderBy += "ASC(?" + query.substring(i+1, index).replace(':','_') + ") ";
-									i = index;
-
-								}else if(query.charAt(i) === '-'){
+					}else if(query.charAt(i) === '-'){
 									
-									index = i;
-									while(index != ',' && index != '}' && index != '&' && index < query.length){
-										index++;
-									}
+						index = i;
+						while(index != ',' && index != '}' && index != '&' && index < query.length){
+							index++;
+						}
 									
-									sparql_query_orderBy += "DESC(?" + query.substring(i+1, index).replace(':','_') + ") ";
-									i = index;
+						sparql_query_orderBy += "DESC(?" + query.substring(i+1, index).replace(':','_') + ") ";
+						i = index;
 
-								}else{
-									if(query.charAt(i) === '{'){
-										index = i+1;
+					}else{
+						if(query.charAt(i) === '{'){
+							index = i+1;
+						}
+
+						if(query.charAt(i) === ','){
+							sparql_orderBy += "?"+query.substring(index, i).replace(':','_')+" ";
+							index = i;
+						}
+
+					}
+
+				}
+
+			}
+
+			console.log("SPARQL FORMATION COMPLETE");
+			console.log(sparql_query_prefix + sparql_query_select + sparql_query_where + sparql_query_orderBy);
+			console.log(encodeURIComponent(sparql_query_prefix + sparql_query_select + sparql_query_where + sparql_query_orderBy));
+
+			ldpService.db.query(encodeURIComponent(sparql_query_prefix + sparql_query_select + sparql_query_where + sparql_query_orderBy), function(err, ires){
+
+				console.log(ires.body);
+				console.log(typeof ires.body);
+
+				if(query.includes("oslc.searchTerms") && !query.includes("oslc.select")){ // Can SELECT be used w/ SearchTerms
+
+					var terms = {};
+
+					var index = query.indexOf("oslc.searchTerms")+"oslc.searchTerms".length;
+					var i;
+					for(i = 0; i < query.length && !query.indexOf('&'); i++){
+						if(query.charAt(i) === ','){
+							terms[query.substring(index, i)] = 0;
+							index = i;
+						}
+					}
+
+					var count = 0;
+
+					var info = ires.body["results"]["bindings"];
+
+					// [0]["g"]["value"];
+
+					// Figure out a good way to sort the 
+					for(var j = 0; j < info.length; j++){
+						ldpService.get(info[j]["uri"], "application/ld+json", function(err, result){
+							for(var key in result["@graph"][0]){
+
+								for(var term in terms){
+
+									if(result["@graph"][key].includes(term)){
+										count++;
 									}
 
-									if(query.charAt(i) === ','){
-										sparql_orderBy += "?"+query.substring(index, i).replace(':','_')+" ";
-										index = i;
-									}
+								}
+												
+							}
 
+							terms[info[j]["uri"]] = count;
+							count = 0;
+
+							// sort values
+							// for value
+							// 		for key
+							//			insert into new list that will be return
+
+							if(j === info.length-1){
+
+								counts.sort();
+
+								to_return = [];
+
+								for(var i = 0; i < counts.length; i++){
+									for(var key in terms){
+										if(terms[key] === counts[i]){
+											to_return.push({"subject": oslc.results, "predicate": rdf.resource, "object": key}); // rdf:resource
+										}
+									}
 								}
 
 							}
 
-						}
+							jsonld.serialize(to_return, function(err, result){
 
-						console.log("SPARQL FORMATION COMPLETE");
-						console.log(sparql_query_prefix + sparql_query_select + sparql_query_where + sparql_query_orderBy);
-						console.log(encodeURIComponent(sparql_query_prefix + sparql_query_select + sparql_query_where + sparql_query_orderBy));
-
-						ldpService.db.query(encodeURIComponent(sparql_query_prefix + sparql_query_select + sparql_query_where + sparql_query_orderBy), function(err, ires){
-
-							console.log(ires.body);
-							console.log(typeof ires.body);
-
-							if(query.includes("oslc.searchTerms") && !query.includes("oslc.select")){ // Can SELECT be used w/ SearchTerms
-
-								var terms = {};
-
-								var index = query.indexOf("oslc.searchTerms")+"oslc.searchTerms".length;
-								var i;
-								for(i = 0; i < query.length && !query.indexOf('&'); i++){
-									if(query.charAt(i) === ','){
-										terms[query.substring(index, i)] = 0;
-										index = i;
-									}
+								if(err){
+									res.sendStatus('500');
 								}
 
-								var count = 0;
+								res.body = result;
+								res.sendStatus(200);
+							});
 
-								var info = ires.body["results"]["bindings"];
-
-								// [0]["g"]["value"];
-
-								// Figure out a good way to sort the 
-								for(var j = 0; j < info.length; j++){
-									ldpService.get(info[j]["uri"], "application/ld+json", function(err, result){
-										for(var key in result["@graph"][0]){
-
-											for(var term in terms){
-
-												if(result["@graph"][key].includes(term)){
-													count++;
-												}
-
-											}
-												
-										}
-
-										terms[info[j]["uri"]] = count;
-										count = 0;
-
-										// sort values
-										// for value
-										// 		for key
-										//			insert into new list that will be return
-
-										if(j === info.length-1){
-
-											counts.sort();
-
-											to_return = [];
-
-											for(var i = 0; i < counts.length; i++){
-												for(var key in terms){
-														if(terms[key] === counts[i]){
-															to_return.push({"subject": oslc.results, "predicate": rdf.resource, "object": key}); // rdf:resource
-														}
-													}
-												}
-
-											}
-
-											jsonld.serialize(to_return, function(err, result){
-
-												if(err){
-													res.sendStatus('500');
-												}
-
-												res.body = result;
-												res.sendStatus(200);
-											});
-
-										});
+						});
 
 				}
 								
@@ -533,6 +527,14 @@ var oslcRoutes = function(env) {
 
 			res.sendJSON(ires.body);
 
+		});
+
+	});
+
+	subApp.get('/all', function(req, res){
+
+		ldpService.db.get("SELECT%20*", "application/sparql-results+json", function(err, ires){
+			res.sendJSON(ires.body);
 		});
 
 	});
@@ -583,7 +585,7 @@ var oslcRoutes = function(env) {
 			console.log("CREATION");
 			res.set('Content-Type', 'text/html');
 			console.log(path.resolve("./dialog/dialog-create.html"));
-			res.sendFile(path.resolve("./dialog/dialog-create.html"));
+			res.sendFile(path.resolve("./dialog/dialog-create.html")); // Sends the contents of the file, so the HTML
 
 		}else if(req.originalUrl.includes("?")){
 			var base = req.originalUrl.substring(0, req.originalUrl.indexOf('?'));
