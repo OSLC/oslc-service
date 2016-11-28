@@ -21,6 +21,8 @@
 var express = require('express');
 var fs = require('fs');
 var path = require("path");
+var http = require('http');
+var https = require('https');
 
 /*
 var rawBody = function(req, res, next) {
@@ -47,6 +49,9 @@ var oslcRoutes = function(env) {
 	var turtle = require('./turtle.js');
 	var crypto = require('crypto'); // for MD5 (ETags)
 	var ldpService = require('../ldp-service-jena'); // OSLC is built on LDP. Uses the service that incorporates Apache Jena as the DB
+
+	var creation_dictionary = {}; // Stores the ResourceShapes associated with the Creation URI's for CreationFactories
+	var query_dictionary = {};	  // Stores the ResourceShapes associated with the Query URI's for QueryCapabilities
 	
 	var subApp = express();
 	// subApp.use(rawBody);
@@ -80,16 +85,11 @@ var oslcRoutes = function(env) {
 		next();
 	});
 
-	/*
-		Searches for resource that contains the URL in order to check that
-		it exists using a SPARQL query. If yes, conducts a check to make sure
-		the content in the POST complies with the shape associated with the creation URI.
-		This shape is saved locally during the initialization of the Jena database.
-	*/
+	
 	resource.post(function(req, res, next) {
 		console.log('OSLC POST request on:'+req.path);
 
-		var the_query = "SELECT ?g WHERE { GRAPH ?g { ?s <http://open-services.net/ns/core#creation> <http://IBM762-PC09JBU1:3000"+req.originalUrl+"> } }";
+		var uri_to_get = creation_dictionary[req.originalUrl];
 		
 		console.log(JSON.stringify(req.body));
 
@@ -105,34 +105,22 @@ var oslcRoutes = function(env) {
 				}else{
 					res.sendStatus(ires.statusCode);
 				}
+				return;
 			});
 		}
 
-		ldpService.db.query(encodeURIComponent(the_query), function(err, ires){
-			if(ires.statusCode === 404){
-				console.error("Creation URI does not exist");
-				res.sendStatus(404);
-			}else if(ires.statusCode === 400){
-				console.error("Error with SPARQL query");
-				res.sendStatus(400);
+		check(req, res, uri_to_get, function(result){
+			console.log("HERE " + result);
+			if(result.error){
+				res.sendStatus('500');
+			}else if(result.problems.length > 0){
+				console.log("Not correct format for the inputted resource");
+				res.sendStatus('400');
 			}
+			// console.log("EXECUTED9 " + next.stack);				
 
-			var uri_to_get = ires.body["results"]["bindings"][0]["g"]["value"];
-
-			check(req, res, uri_to_get, function(result){
-				console.log("HERE " + result);
-				if(result[0]){
-					res.sendStatus('500');
-				}else if(result[1].length > 0){
-					console.log("Not correct format for the inputted resource");
-					res.sendStatus('400');
-				}
-				// console.log("EXECUTED9 " + next.stack);				
-
-				next();
+			next();
 					
-			});
-
 		});
 
 	});
@@ -170,7 +158,7 @@ var oslcRoutes = function(env) {
 
 	*/
 
-	function queryResource(shape, req, res){
+	function queryResource(shape, decode, req, res){
 
 		var query = decode.substring(decode.indexOf('?')+1, decode.length);
 		var sparql_query_select = "SELECT ?g ";
@@ -293,8 +281,7 @@ var oslcRoutes = function(env) {
 			console.log(index);
 			for(var i = index; i < query.length && query.charAt(i) !== '&'; i++){
 
-				if(query.charAt(i) === '=' || query.charAt(i) === ' ' || query.charAt(i) === '<' || query.charAt(i) === '>' || query.charAt(i) === 
-										'!'){
+				if(query.charAt(i) === '=' || query.charAt(i) === ' ' || query.charAt(i) === '<' || query.charAt(i) === '>' || query.charAt(i) === '!'){
 					console.log(query.charAt(i));
 					var resource = query.substring(index, i);
 
@@ -306,7 +293,7 @@ var oslcRoutes = function(env) {
 					// check if param is valid
 					// http://example.com/bugs?oslc.where=cm:severity="high" and dcterms:created>"2010-04-01"
 					// oslc.prefix=cm=<http://qm.example.com/ns>,dcterms=<http://dcterms.example.com>&oslc.select=dcterms:created,dcterms:creator&oslc.where=cm:severity="high"&oslc.orderBy=-dcterms:created
-
+					// oslc.prefix%3Dcm%3D%3Chttp%3A%2F%2Fqm.example.com%2Fns%3E%2Cdcterms%3D%3Chttp%3A%2F%2Fdcterms.example.com%3E%26oslc.select%3Ddcterms%3Acreated%2Cdcterms%3Acreator%26oslc.where%3Dcm%3Aseverity%3D%22high%22%26oslc.orderBy%3D-dcterms%3Acreated
 
 					while(query.charAt(index_follow) != '&' && index_follow < query.length && query.charAt(index_follow) != ' ' && query.charAt(index_follow) != '}'){
 		
@@ -366,6 +353,7 @@ var oslcRoutes = function(env) {
 
 			}
 
+			/*
 			if(filter.length > 0){
 
 				sparql_query_where+="FILTER "+filter[0];
@@ -375,6 +363,7 @@ var oslcRoutes = function(env) {
 				}
 
 			}
+			*/
 
 			sparql_query_where += "} } ";
 
@@ -451,7 +440,7 @@ var oslcRoutes = function(env) {
 
 					var count = 0;
 
-					var info = ires.body["results"]["bindings"];
+					var info = JSON.parse(ires.body)["results"]["bindings"];
 
 					// [0]["g"]["value"];
 
@@ -494,7 +483,7 @@ var oslcRoutes = function(env) {
 
 							}
 
-							jsonld.serialize(to_return, function(err, result){
+							json.serialize(to_return, function(err, result){
 
 								if(err){
 									res.sendStatus('500');
@@ -531,10 +520,13 @@ var oslcRoutes = function(env) {
 
 	});
 
+	// Used for initializing Selection Dialog
 	subApp.get('/all', function(req, res){
 
-		ldpService.db.get("SELECT%20*", "application/sparql-results+json", function(err, ires){
-			res.sendJSON(ires.body);
+		// 
+		ldpService.db.query("SELECT%20%3Fs%20%3Fp%20%3Fo%20WHERE%20%7BGRAPH%20%3Fg%20%7B%3Fs%20%3Fp%20%3Fo%7D%7D", function(err, ires){
+			res.set({'Access-Control-Allow-Origin': '*'});
+			res.json(ires.body);
 		});
 
 	});
@@ -548,8 +540,8 @@ var oslcRoutes = function(env) {
 
 			var compact = {};
 
-			ldpService.db.get(req.baseUrl, "application/ld+json", function(err, ires){
-				compact.title = ires.body["name"];
+			ldpService.db.get(req.originalUrl, "application/ld+json", function(err, ires){
+				compact.title = JSON.parse(ires.body)["name"];
 				compact.smallPreview = {};
 				compact.largePreview = {};
 
@@ -563,25 +555,28 @@ var oslcRoutes = function(env) {
 
 				res.body = compact;
 
+				// Set header to be JSON
 				res.sendStatus(200);
 
 			});
 
 		}else if(req.originalUrl.includes("?preview=large")){
 
-			resource_uri = req.baseUrl.substring(0, req.baseUrl.indexOf('?'));
-			res.send("./preview/preview-large.html");
+			resource_uri = req.originalUrl.substring(0, req.originalUrl.indexOf('?'));
+			res.set('Content-Type', 'text/html');
+			res.send(path.resolve("./preview/preview-large.html"));
 
 		}else if(req.originalUrl.includes("?preview=small")){
 
-			resource_uri = req.baseUrl.substring(0, req.baseUrl.indexOf('?'));
-			res.send("./preview/preview-small.html");
+			resource_uri = req.originalUrl.substring(0, req.originalUrl.indexOf('?'));
+			res.set('Content-Type', 'text/html');
+			res.send(path.resolve("./preview/preview-small.html"));
 
 		}else if(req.originalUrl.includes("/selection-dialog")){
 			res.set('Content-Type', 'text/html');
 			res.send(path.resolve("./dialog/dialog-select.html"));
 
-		}else if(req.originalUrl.includes("creation-dialog")){
+		}else if(req.originalUrl.includes("/creation-dialog")){
 			console.log("CREATION");
 			res.set('Content-Type', 'text/html');
 			console.log(path.resolve("./dialog/dialog-create.html"));
@@ -591,66 +586,46 @@ var oslcRoutes = function(env) {
 			var base = req.originalUrl.substring(0, req.originalUrl.indexOf('?'));
 			// Need to replace '/' w/ %2F to be in compliance w/ URI
 			console.log("QUERY BASE " + base);
-			var the_query = "SELECT ?g WHERE { GRAPH ?g { ?s <http://open-services.net/ns/core#queryBase> <http://IBM762-PC09JBU1:3000"+base+"> } }";
-			ldpService.db.query(encodeURIComponent(the_query), function(err, ires){
-				if(ires.statusCode === 404){
-					console.error("Query URI does not exist");
-					res.sendStatus(404);
-				}
+			
+			var decode = decodeURIComponent(req.originalUrl);
 
-				if(ires.statusCode === 400){
-					console.error("Error with SPARQL request");
-					res.sendStatus(400);
-				}
+			file_name = query_dictionary[base];
+			console.log(file_name);
 
-				var uri_to_get = JSON.parse(ires.body)["results"]["bindings"][0]["g"]["value"];
+			//var file = fs.readFileSync("../oslc-service/shape-files/"+file_name+"-shape.json", 'utf8');
 
-				ldpService.db.get(uri_to_get, "application/ld+json", function(err, ires){
-					
-					var decode = decodeURIComponent(req.originalUrl);
+			//if(file){
+			queryResource(undefined, decode, req, res);
+			/*
+			}else{
 
-					file_name = JSON.parse(ires.body)["resourceShape"];
-					file_name.replace('://', '/');
+				if(ires.body["graph"][0]["resourceShape"].includes("http:")){
 
-					var file = fs.readFileSync("../oslc-service/shape-files/"+file_name+"-shape.json", 'utf8');
-
-					if(file){
-						queryResource(JSON.parse(file), req, res);
-
-					}else{
-
-						if(ires.body["graph"][0]["resourceShape"].includes("http:")){
-
-							try{
-								http.get(ires.body["graph"][0]["resourceShape"], function(response){
-									console.log("RESPONSE: " + response);
-									fs.writeFile("../../shape_files/"+ires.body["resourceShape"]+"-shape.json", response);
-									queryResource(JSON.parse(fs.readFileSync("../oslc-service/shape-files/"+file_name+"-shape.json", 'utf8')), req, res);
-								});
-							}catch(err){
-								console.error("Resource does not exist");
-								res.sendStatus(401)
-							}
-
-						}else{
-
-							try{
-								https.get(ires.body["graph"][0]["resourceShape"], function(response){
-									console.log("RESPONSE: " + response);
-									fs.writeFile("../../shape_files/"+ires.body["graph"][0]["resourceShape"]+"-shape.json", response);
-									queryResource(JSON.parse(fs.readFileSync("../oslc-service/shape-files/"+file_name+"-shape.json", 'utf8')), req, res);
-								});
-							}catch(err){
-								console.error("Resource does not exist");
-								res.sendStatus(401);
-							}
-						}
+					try{
+						http.get(ires.body["graph"][0]["resourceShape"], function(response){
+							console.log("RESPONSE: " + response.statusCode);
+							fs.writeFile("../../shape_files/"+ires.body["resourceShape"]+"-shape.json", response);
+							queryResource(JSON.parse(fs.readFileSync("../oslc-service/shape-files/"+file_name+"-shape.json", 'utf8')), req, res);
+						});
+					}catch(err){
+						console.error("Resource does not exist");
+						res.sendStatus(401)
 					}
 
-					
-				});
+				}else{
 
-			});
+					try{
+						https.get(ires.body["graph"][0]["resourceShape"], function(response){
+							console.log("RESPONSE: " + response);
+							fs.writeFile("../../shape_files/"+ires.body["graph"][0]["resourceShape"]+"-shape.json", response);
+							queryResource(JSON.parse(fs.readFileSync("../oslc-service/shape-files/"+file_name+"-shape.json", 'utf8')), req, res);
+						});
+					}catch(err){
+						console.error("Resource does not exist");
+						res.sendStatus(401);
+					}
+				}
+			}*/
 
 		}else{
 			next();
@@ -871,37 +846,50 @@ var oslcRoutes = function(env) {
 			
 			ldpService.db.get(uri_to_get, "application/ld+json", function(err, ires){
 
-				var file = fs.readFileSync("../oslc-service/shape-files/"+ires.body["@graph"][0]["resourceShape"]+"-shape.json", 'utf8');
 
-				if(file){
+				try{
+					var file = fs.readFileSync("../oslc-service/shape-files/"+JSON.parse(ires.body)["resourceShape"]+"-shape.json", 'utf8');
 					preProcessVerifyShape(JSON.parse(file), triples, req);
 
-				}else{
+				}catch(err){
 
-						if(ires.body["graph"][0]["resourceShape"].includes("http:")){
+						if(JSON.parse(ires.body)["resourceShape"].includes("http:")){
 
+							console.log(JSON.parse(ires.body)["resourceShape"]);
 							try{
-								http.get(ires.body["graph"][0]["resourceShape"], function(response){
-									console.log("RESPONSE: " + response);
-									fs.writeFile("../../shape_files/"+ires.body["graph"][0]["resourceShape"]+"-shape.json", response);
-									preProcessVerifyShape(JSON.parse(fs.readFileSync("../oslc-service/shape-files/"+ires.body["@graph"][0]["resourceShape"]+"-shape.json", 'utf8')), triples, req, callback);
-								});
+								http.get(JSON.parse(ires.body)["resourceShape"], function(response){
+									var data = "";
+									response.on('data', function(chunk){
+										console.log(typeof chunk);
+										data += chunk;
+										
+									});
+
+									response.on('end', function(){
+										fs.writeFileSync("../../shape_files/"+JSON.parse(ires.body)["resourceShape"]+"-shape.json", data);
+										preProcessVerifyShape(JSON.parse(fs.readFileSync("../oslc-service/shape-files/"+JSON.parse(ires.body)["resourceShape"], 'utf8')), triples, req, callback);									});
+									
+									});
 							}catch(err){
 								console.error("Resource does not exist");
-								callback(err);
+								var results = {};
+								results.error = err;
+								callback(results);
 							}
 
 						}else{
 
 							try{
-								https.get(ires.body["graph"][0]["resourceShape"], function(response){
+								https.get(JSON.parse(ires.body)["resourceShape"], function(response){
 									console.log("RESPONSE: " + response);
-									fs.writeFile("../../shape_files/"+ires.body["graph"][0]["resourceShape"]+"-shape.json", response);
-									preProcessVerifyShape(JSON.parse(fs.readFileSync("../oslc-service/shape-files/"+ires.body["@graph"][0]["resourceShape"]+"-shape.json", 'utf8')), triples, req, callback);
+									fs.writeFile("../../shape_files/"+JSON.parse(ires.body)["resourceShape"]+"-shape.json", response);
+									preProcessVerifyShape(JSON.parse(fs.readFileSync("../oslc-service/shape-files/"+JSON.parse(ires.body)["resourceShape"], 'utf8')), triples, req, callback);
 								});
 							}catch(err){
 								console.error("Resource does not exist");
-								callback(err);
+								var results = {};
+								results.error = err;
+								callback(results);
 							}
 						}
 				}
@@ -916,13 +904,18 @@ var oslcRoutes = function(env) {
 	function preProcessVerifyShape(file, triples, req, callback){
 
 		errors_to_report = verifyShape(file, triples, req);
+		var results = {};
 		console.log("Errors: " + errors_to_report + " " + errors_to_report.length);
 		if(errors_to_report.length > 0){
-			callback([null, errors_to_report]);
+			results.error = null;
+			results.problems = errors_to_report;
+			callback(results);
 			return;
 		}
 
-		callback([null, true])
+		results.error = null;
+		results.problems = [];
+		callback(results);
 	}
 
 	// generate an ETag for a response using an MD5 hash
@@ -965,37 +958,215 @@ var oslcRoutes = function(env) {
 	// var routes = ldpService(env);
 	subApp.use(ldpService(env));
 	console.log("OSLC Set-Up Complete");
+	ldpService.db.get(env.ldpBase, 'application/ld+json', function(err, document) {
+			console.log(err + " " + document.statusCode);
+			if (err) {
+				console.log(err.stack);
+				return;
+			}
+
+			if (document.statusCode === 404) {
+				createRootContainer(env, function(err) {
+					if (err) {
+						console.log(err.stack);
+					}
+				});
+			}
+
+			function createRootContainer(env, callback) {
+		
+			var file = fs.readFileSync(env.services, 'utf8');
+			var services = JSON.parse(file);
+			console.log(services);
+			//readShapes(services, callback);
+			var obj = {};
+			obj.rawBody = file.toString();
+			console.log(obj.rawBody);
+			json.parse(obj, env.ldpBase, function(err, triples){
+				if(err){
+					callback(err);
+				}
+				console.log(triples);
+				var mark = Date.now(); // used to identify resources
+				findBlankNodes(env.ldpBase+services["@graph"][0]["@id"], env.ldpBase, triples, json.serialize, true, mark, callback);
+				callback(null);
+			});
+
+	}
+
+	function findBlankNodes(blank_subject, main_uri, triples, serialize, first_time, mark, callback){
+	    var new_triples = [];
+
+	    return assignURI(main_uri, "/", first_time, mark, function(err, uri, first_time){
+
+	    	if(err){
+	    		callback(err);
+	    	}
+
+		    var obj = "";
+		    for(var i = 0; i < triples.length; i++){
+
+		        console.log("LOOKING FOR: " + blank_subject);
+		          if(triples[i].subject === blank_subject){
+
+			          if(triples[i].object.includes("_:b")){
+			          	   console.log("FOUND NODE: " + triples[i].object);
+			               obj = findBlankNodes(triples[i].object, uri, triples, serialize, first_time, mark++, callback);
+			               
+			          }else if(triples[i].object.includes("ex:")){ 	// implies that there's an external file
+			          		var file = fs.readFileSync(triples[i].object);
+							obj = findBlankNodes(triples[i].object, uri, triples, serialize, first_time, mark++, callback);
+							json.parse(file, function(err, ex_triples){
+								if(err){
+									callback(err);
+								}
+								findBlankNodes(obj, uri, ex_triples, serialize, true, mark++, callback);
+							});
+							
+			          }else{
+			               obj = triples[i].object;
+			          }
+
+		              console.log("MADE TRIPLE: {subject: "+uri+", predicate: "+triples[i].predicate+", object: "+obj+"}");
+		              new_triples.push({subject: uri, predicate: triples[i].predicate, object: obj});
+		          }
+
+		     }
+
+		     new_triples.push({subject: uri, predicate: rdf.type, object: ldp.BasicContainer});
+
+		     serialize(new_triples, function(err, content_type, result){
+
+		        if(err){
+		        	console.log(err.stack);
+		            callback(err);
+		        }
+
+		       	var json_result = JSON.parse(result);
+
+		        console.log("RESULT");
+		        console.log(json_result["@type"][0]); 
+
+		        if(json_result['@type'][0] === oslc.CreationFactory){
+		        	var create_uri = json_result[oslc.creation]['@id'];
+		        	creation_dictionary[create_uri] = json_result[oslc.resourceShape]['@id'];
+		        	
+		        }
+
+		        if(json_result['@type'][0] === oslc.QueryCapability){
+		        	var query_uri = json_result[oslc.queryBase]['@id'];
+		        	console.log(result);
+		        	query_dictionary[query_uri] = json_result[oslc.resourceShape]['@id'];
+		        	console.log(query_dictionary[query_uri]);
+		        }
+
+		        ldpService.db.put(uri, result, 'application/ld+json', function(err){
+		      		if(err){
+		          		console.log(err.stack);
+		              	callback(err);
+		           	}
+
+		           	return uri;
+		        });        
+
+		     });
+		 });
+
+		// append 'path' to the end of a uri
+		// - any query or hash in the uri is removed
+		// - any special characters like / and ? in 'path' are replaced
+		function addPath(uri, path) {
+			uri = uri.split("?")[0].split("#")[0];
+			if (uri.substr(-1) !== '/') {
+				uri += '/';
+			}
+
+			// remove special characters from the string (e.g., '/', '..', '?')
+			var lastSegment = path.replace(/[^\w\s\-_]/gi, '');
+			return uri + encodeURIComponent(lastSegment);
+		}
+
+		// generates and reserves a unique URI with base URI 'container'
+		function uniqueURI(container, first_time, mark, callback) {
+			if(!first_time){
+				container = addPath(container, 'res' + mark);
+			}
+			first_time = false;
+			console.log("CANDIDATE: " + container);
+			ldpService.db.reserveURI(container, function(err) {
+
+				if(err){
+					console.error("URI already in use");
+					return;
+				}
+				console.log("CANDIDATE: " + container + " " + err);
+				callback(err, container, first_time);
+			});
+
+			return container;
+		}
+
+		// reserves a unique URI for a new subApp. will use slug if available,
+		// but falls back to the usual naming scheme if slug is already used
+		function assignURI(container, slug, first_time, mark, callback) {
+/*
+			if (slug) {
+				var candidate = addPath(container, slug);
+				uniqueURI(candidate, callback);
+
+				/*l
+				db.reserveURI(candidate, function(err) {
+
+					if (err) {
+						uniqueURI(container, callback);
+					} else {
+						callback(null, candidate);
+					}
+				});
+				
+			} else {
+*/	
+				//console.log("CANDIDATE: " + container);
+				return uniqueURI(container, first_time, mark, callback);
+			//}
+		}
+	     
+	}
+
+		/*
+		// reserves a unique URI for a new subApp. will use slug if available,
+		// but falls back to the usual naming scheme if slug is already used
+		function assignURI(container, slug, callback) {
+			if (slug) {
+				var candidate = addPath(container, slug);
+				ldpService.db.reserveURI(candidate, function(err) {
+					if (err) {
+						uniqueURI(container, callback);
+					} else {
+						callback(null, candidate);
+					}
+				});
+			} else {
+				uniqueURI(container, callback);
+			}
+		}
+		*/
+		function getBlankTripleType(content, blank_node){
+			for(var i = 0; i < content.length; i++){
+				if(content[i].subject === blank_node && content[i].predicate === oslc.Type){
+					return content[i];
+				}
+			}
+
+			return null;
+		}
+		});
 	return subApp;
 
 }
 
-/*
-// reserves a unique URI for a new subApp. will use slug if available,
-// but falls back to the usual naming scheme if slug is already used
-function assignURI(container, slug, callback) {
-	if (slug) {
-		var candidate = addPath(container, slug);
-		ldpService.db.reserveURI(candidate, function(err) {
-			if (err) {
-				uniqueURI(container, callback);
-			} else {
-				callback(null, candidate);
-			}
-		});
-	} else {
-		uniqueURI(container, callback);
-	}
-}
-*/
-function getBlankTripleType(content, blank_node){
-	for(var i = 0; i < content.length; i++){
-		if(content[i].subject === blank_node && content[i].predicate === oslc.Type){
-			return content[i];
-		}
-	}
-
-	return null;
-}
+// creates a root container on first run
+	
 
 /*
 // append 'path' to the end of a uri
