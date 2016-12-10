@@ -52,6 +52,8 @@ var oslcRoutes = function(env) {
 
 	var creation_dictionary = {}; // Stores the ResourceShapes associated with the Creation URI's for CreationFactories
 	var query_dictionary = {};	  // Stores the ResourceShapes associated with the Query URI's for QueryCapabilities
+
+	var link = {};
 	
 	var subApp = express();
 	// subApp.use(rawBody);
@@ -61,12 +63,23 @@ var oslcRoutes = function(env) {
 	// route any requests matching the LDP context (defaults to /r/*)
 	resource.all(function(req, res, next) {
 		// all responses should have Link: <ldp:Resource> rel=type
-		var links = {
-			
-		};
-		// also include implementation constraints
-		res.links(links);
-		next();
+
+		var links = {};
+
+		for(key in link[req.originalUrl]){
+			links[key] = link[req.originalUrl][key];
+		}
+
+		ldpService.get(req.originalUrl+"?compact", "application/ld+json", function(err, ires){
+			if(ires.statusCode === 200){
+				links[oslc.Compact] = req.originalUrl+"?compact";
+			}
+
+			// also include implementation constraints
+			res.links(links);
+			next();
+		});
+		
 	});
 
 	subApp.get('/properties', function(req, res, next){
@@ -160,14 +173,146 @@ var oslcRoutes = function(env) {
 
 	function queryResource(shape, decode, req, res){
 
-		var query = decode.substring(decode.indexOf('?')+1, decode.length);
-		var sparql_query_select = "SELECT ?g ";
-		var sparql_query_where = "WHERE { GRAPH ?g { ";
-		var sparql_query_prefix = "";
-		var sparql_query_orderBy = "";
+
+		/*
+			var query = decode.substring(decode.indexOf('?')+1, decode.length);
+			var sparql_query_select = "SELECT ?g ";
+			var sparql_query_where = "WHERE { GRAPH ?g { ";
+			var sparql_query_prefix = "";
+			var sparql_query_orderBy = "";
+
+		*/
 
 		// Construct SPARQL Query
 		// Use resource shapes to determine that vocab used is accurate
+			class Node {
+	
+				constructor(val, left, right){
+					this.val = val;
+					this.left = left;
+					this.right = right;
+				}
+
+			}
+
+			Test code to create an AST 
+			Need to create an OSLC node that finds root of OSLC
+			Does not take into account any errors
+
+			var node = null;
+			var oslc_node = null
+			var amp_node = null
+			var curl_node_stack = new Array();
+
+			var index = 0;
+
+			for(var i = 0; i < query.length; i++){
+				
+				if(query.charAt(i) === '=' || query.charAt(i) === '>' || query.charAt(i) === '<'){
+	
+					var val_one = query.substring(index, i);
+					if(val_one === "oslc.where" || val_one === "oslc.select" || val_one === "oslc.prefix"){
+
+						if(amp_node){
+							amp_node.right = Node(query.charAt(i), Node(val_one, null, null), null);
+							node = amp_node.right;
+						}else{
+							node = Node(query.charAt(i), Node(val_one, null, null), null);
+						}
+						
+						oslc_node = node;
+						index = i+1;
+						
+					}else{
+
+						// Loop through
+						var val_two = query.substring(i+1, index);
+						tmp = Node(query.charAt(i), Node(val_one, null, null), Node(val_two, null, null));
+
+						if(query.charAt(i+val_two.length+1) === ' '){
+							if(query.substring(i+val_two.length+2, i+val_two.length+5) === "and"){
+							
+								and_node = Node("and", tmp, null);
+								node.right = and_node;
+								i += (val_two.length+5);
+
+								node = node.right;
+							}
+						}else{
+							node.right = tmp;
+						}
+
+						
+
+					}			
+
+				}
+
+				if(query.charAt(i) === '&'){
+
+					if(oslc_node.left.val === "oslc.select"){
+						node.right = Node(query.substring(index, i), null, null);
+					}
+					
+					if(amp_node === null){
+						left_node = oslc_node;
+						node = Node('&', left_node, null);
+						amp_node = node;
+					}else{
+						amp_node = Node('&', amp_node, null);
+					}
+					index = i+1;
+
+				}
+
+							// Unfinished. Does not take into account ',' within a {}
+
+							if(query.charAt(i) === '{'){
+				
+								open_paran_node = Node('{', Node(query.substring(index, i), null, null), Node('}', null, null));
+								curl_nodes.push(open_paran_node);
+								pre_curl_node = node;
+								node = open_paran_node;
+
+							}
+
+							if(query.charAt(i) === '}'){
+								
+								ret_node = curl_nodes.pop();
+
+								if(curl_nodes.length === 0){
+									pre_curl_node.right = ret_node;
+									node = pre_curl_node.right;
+								}else{
+									curl_nodes[curl_nodes.length-1].right.left = ret_node;
+								}
+
+							}
+
+
+
+				if(query.charAt(i) === ','){
+	
+
+					var val = query.substring(index, query.charAt(i));
+					comma_node = Node(',', val, null);
+					node.right = comma_node;
+					node = node.right;
+					index = i+1;
+
+				}
+
+			}
+	
+			if(amp_node){
+				ldpService.query(amp_node);
+			}else{
+				ldpService.query(oslc_node);
+			}
+			
+
+
+		/*
 					
 
 		if(query.includes("oslc.prefix")){
@@ -181,6 +326,17 @@ var oslcRoutes = function(env) {
 					index_follow = i+1;
 					// check if param is valid
 					// http://example.com/bugs?oslc.where=cm:severity="high" and dcterms:created>"2010-04-01"
+
+					//
+					//
+					//									
+					//					
+					//				
+					//	
+					//
+					//
+					//
+					//
 							
 					while(query.charAt(index_follow) != '&' && index_follow < query.length && query.charAt(index_follow) != ',' && query.charAt(index_follow) != '}'){
 		
@@ -318,7 +474,7 @@ var oslcRoutes = function(env) {
 										
 						filter.push(resource.replace(':','_')+query.charAt(i)+query.substring(i+1, index_follow));
 
-					*/
+					
 
 					if(query.charAt(index_follow) === '&'){
 						break;
@@ -353,7 +509,7 @@ var oslcRoutes = function(env) {
 
 			}
 
-			/*
+			
 			if(filter.length > 0){
 
 				sparql_query_where+="FILTER "+filter[0];
@@ -363,7 +519,7 @@ var oslcRoutes = function(env) {
 				}
 
 			}
-			*/
+			
 
 			sparql_query_where += "} } ";
 
@@ -419,6 +575,10 @@ var oslcRoutes = function(env) {
 			console.log("SPARQL FORMATION COMPLETE");
 			console.log(sparql_query_prefix + sparql_query_select + sparql_query_where + sparql_query_orderBy);
 			console.log(encodeURIComponent(sparql_query_prefix + sparql_query_select + sparql_query_where + sparql_query_orderBy));
+
+			var result = function(results){
+				
+			}
 
 			ldpService.db.query(encodeURIComponent(sparql_query_prefix + sparql_query_select + sparql_query_where + sparql_query_orderBy), function(err, ires){
 
@@ -496,7 +656,8 @@ var oslcRoutes = function(env) {
 						});
 
 				}
-								
+				*/
+
 			}else{
 
 				res.body = ires.body;
@@ -523,8 +684,11 @@ var oslcRoutes = function(env) {
 	// Used for initializing Selection Dialog
 	subApp.get('/all', function(req, res){
 
-		// 
-		ldpService.db.query("SELECT%20%3Fs%20%3Fp%20%3Fo%20WHERE%20%7BGRAPH%20%3Fg%20%7B%3Fs%20%3Fp%20%3Fo%7D%7D", function(err, ires){
+		// Need to remove SPARQL, how to populate the Selection Dialog
+
+		var node = Node("=", Node("oslc.select", null, null), Node("*", null, null));
+
+		ldpService.db.query(node, function(err, ires){
 			res.set({'Access-Control-Allow-Origin': '*'});
 			res.json(ires.body);
 		});
@@ -1048,9 +1212,18 @@ var oslcRoutes = function(env) {
 		        console.log(json_result["@type"][0]); 
 
 		        if(json_result['@type'][0] === oslc.CreationFactory){
-		        	var create_uri = json_result[oslc.creation]['@id'];
-		        	creation_dictionary[create_uri] = json_result[oslc.resourceShape]['@id'];
-		        	
+		        	var creation_uri = json_result[oslc.creation]['@id'];
+		        	console.log(result);
+		        	creation_dictionary[creation_uri] = json_result[oslc.resourceShape]['@id'];
+		        	link[uri]["type"] = json_result[oslc.resourceShape]['@id'];	
+		        }
+
+		        if(json_result[oslc.selectionDialog]){
+		        	link[uri][oslc.selectionDialog] = json_result[oslc.selectionDialog];
+		        }
+
+		        if(json_result[oslc.creationDialog]){
+		        	link[uri][oslc.creationDialog] = json_result[oslc.creationDialog];
 		        }
 
 		        if(json_result['@type'][0] === oslc.QueryCapability){
@@ -1058,6 +1231,14 @@ var oslcRoutes = function(env) {
 		        	console.log(result);
 		        	query_dictionary[query_uri] = json_result[oslc.resourceShape]['@id'];
 		        	console.log(query_dictionary[query_uri]);
+
+		        	link[uri][type] = json_result[oslc.resourceShape]['@id'];
+		        	
+		        }
+
+		        if(json_result['@type'][0] === oslc.Dialog){
+		        	link[uri]["type"] = json_result[oslc.resourceShape]['@id'];
+		        	
 		        }
 
 		        ldpService.db.put(uri, result, 'application/ld+json', function(err){
