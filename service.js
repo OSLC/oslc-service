@@ -195,9 +195,11 @@ var oslcRoutes = function(env) {
 
 			}
 
-			Test code to create an AST 
-			Need to create an OSLC node that finds root of OSLC
-			Does not take into account any errors
+			/*
+				Test code to create an AST 
+				Need to create an OSLC node that finds root of OSLC
+				Does not take into account any errors
+			*/
 
 			var node = null;
 			var oslc_node = null
@@ -305,9 +307,25 @@ var oslcRoutes = function(env) {
 			}
 	
 			if(amp_node){
-				ldpService.query(amp_node);
+				ldpService.query(amp_node, function(err, ires){
+
+					if(err){
+						console.error(err.stack);
+						res.sendStatus(500);
+					}
+
+				});
+
 			}else{
-				ldpService.query(oslc_node);
+				ldpService.query(oslc_node, function(err, ires){
+
+					if(err){
+						console.error(err.stack);
+						res.sendStatus(500);
+					}
+
+				});
+
 			}
 			
 
@@ -656,7 +674,7 @@ var oslcRoutes = function(env) {
 						});
 
 				}
-				*/
+				
 
 			}else{
 
@@ -666,7 +684,7 @@ var oslcRoutes = function(env) {
 			}
 
 		});
-
+		*/
 
 	}
 
