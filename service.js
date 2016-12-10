@@ -102,7 +102,7 @@ var oslcRoutes = function(env) {
 	resource.post(function(req, res, next) {
 		console.log('OSLC POST request on:'+req.path);
 
-		var uri_to_get = creation_dictionary[req.originalUrl];
+		var shape_to_get = creation_dictionary[req.originalUrl];
 		
 		console.log(JSON.stringify(req.body));
 
@@ -122,7 +122,7 @@ var oslcRoutes = function(env) {
 			});
 		}
 
-		check(req, res, uri_to_get, function(result){
+		check(req, res, shape_to_get, function(result){
 			console.log("HERE " + result);
 			if(result.error){
 				res.sendStatus('500');
@@ -774,41 +774,12 @@ var oslcRoutes = function(env) {
 			file_name = query_dictionary[base];
 			console.log(file_name);
 
-			//var file = fs.readFileSync("../oslc-service/shape-files/"+file_name+"-shape.json", 'utf8');
+			ldpService.db.get(file_name, "application/ld+json", function(err, ires){
 
-			//if(file){
-			queryResource(undefined, decode, req, res);
-			/*
-			}else{
+				queryResource(JSON.parse(ires.body), decode, req, res);
 
-				if(ires.body["graph"][0]["resourceShape"].includes("http:")){
-
-					try{
-						http.get(ires.body["graph"][0]["resourceShape"], function(response){
-							console.log("RESPONSE: " + response.statusCode);
-							fs.writeFile("../../shape_files/"+ires.body["resourceShape"]+"-shape.json", response);
-							queryResource(JSON.parse(fs.readFileSync("../oslc-service/shape-files/"+file_name+"-shape.json", 'utf8')), req, res);
-						});
-					}catch(err){
-						console.error("Resource does not exist");
-						res.sendStatus(401)
-					}
-
-				}else{
-
-					try{
-						https.get(ires.body["graph"][0]["resourceShape"], function(response){
-							console.log("RESPONSE: " + response);
-							fs.writeFile("../../shape_files/"+ires.body["graph"][0]["resourceShape"]+"-shape.json", response);
-							queryResource(JSON.parse(fs.readFileSync("../oslc-service/shape-files/"+file_name+"-shape.json", 'utf8')), req, res);
-						});
-					}catch(err){
-						console.error("Resource does not exist");
-						res.sendStatus(401);
-					}
-				}
-			}*/
-
+			});
+			
 		}else{
 			next();
 		}
@@ -998,7 +969,7 @@ var oslcRoutes = function(env) {
 
 	}
 
-	function check(req, res, uri_to_get, callback){
+	function check(req, res, shape_to_get, callback){
 		var content = {};
 		content.rawBody = JSON.stringify(req.body);
 		
@@ -1026,55 +997,9 @@ var oslcRoutes = function(env) {
 
 			//var file = JSON.parse(fs.readFileSync("../oslc-service/shape-files/"+req.originalUrl+".json", 'utf8'));
 			
-			ldpService.db.get(uri_to_get, "application/ld+json", function(err, ires){
+			ldpService.db.get(shape_to_get, "application/ld+json", function(err, ires){
 
-
-				try{
-					var file = fs.readFileSync("../oslc-service/shape-files/"+JSON.parse(ires.body)["resourceShape"]+"-shape.json", 'utf8');
-					preProcessVerifyShape(JSON.parse(file), triples, req);
-
-				}catch(err){
-
-						if(JSON.parse(ires.body)["resourceShape"].includes("http:")){
-
-							console.log(JSON.parse(ires.body)["resourceShape"]);
-							try{
-								http.get(JSON.parse(ires.body)["resourceShape"], function(response){
-									var data = "";
-									response.on('data', function(chunk){
-										console.log(typeof chunk);
-										data += chunk;
-										
-									});
-
-									response.on('end', function(){
-										fs.writeFileSync("../../shape_files/"+JSON.parse(ires.body)["resourceShape"]+"-shape.json", data);
-										preProcessVerifyShape(JSON.parse(fs.readFileSync("../oslc-service/shape-files/"+JSON.parse(ires.body)["resourceShape"], 'utf8')), triples, req, callback);									});
-									
-									});
-							}catch(err){
-								console.error("Resource does not exist");
-								var results = {};
-								results.error = err;
-								callback(results);
-							}
-
-						}else{
-
-							try{
-								https.get(JSON.parse(ires.body)["resourceShape"], function(response){
-									console.log("RESPONSE: " + response);
-									fs.writeFile("../../shape_files/"+JSON.parse(ires.body)["resourceShape"]+"-shape.json", response);
-									preProcessVerifyShape(JSON.parse(fs.readFileSync("../oslc-service/shape-files/"+JSON.parse(ires.body)["resourceShape"], 'utf8')), triples, req, callback);
-								});
-							}catch(err){
-								console.error("Resource does not exist");
-								var results = {};
-								results.error = err;
-								callback(results);
-							}
-						}
-				}
+				preProcessVerifyShape(JSON.parse(ires.body), triples, req, callback);
 
 			});
 			
@@ -1176,6 +1101,46 @@ var oslcRoutes = function(env) {
 
 	}
 
+	function insertShape(shape_uri){
+
+
+		try{
+			http.get(shape_uri, function(response){
+				var data = "";								
+				response.on('data', function(chunk){
+					console.log(typeof chunk);
+					data += chunk;
+													
+				});
+				response.on('end', function(){
+					console.log(typeof data);
+
+					ldpService.db.put(shape_uri, data, function(err, ires){
+
+						if(err){
+							console.error(err.stack);
+							return;
+						}
+						if(ires.statusCode === 400){
+							res.sendStatus(400);
+							return;
+						}
+					});
+				});
+											
+			});
+										
+		}catch(err){
+			console.error("Resource does not exist");
+			var results = {};
+			results.error = err;
+			
+		}
+
+
+	}
+
+
 	function findBlankNodes(blank_subject, main_uri, triples, serialize, first_time, mark, callback){
 	    var new_triples = [];
 
@@ -1230,6 +1195,7 @@ var oslcRoutes = function(env) {
 		        console.log(json_result["@type"][0]); 
 
 		        if(json_result['@type'][0] === oslc.CreationFactory){
+		        	json_result[oslc.resourceShape]['@id']
 		        	var creation_uri = json_result[oslc.creation]['@id'];
 		        	console.log(result);
 		        	creation_dictionary[creation_uri] = json_result[oslc.resourceShape]['@id'];
@@ -1245,6 +1211,8 @@ var oslcRoutes = function(env) {
 		        }
 
 		        if(json_result['@type'][0] === oslc.QueryCapability){
+
+		        	insertShape(json_result[oslc.resourceShape]['@id']);
 		        	var query_uri = json_result[oslc.queryBase]['@id'];
 		        	console.log(result);
 		        	query_dictionary[query_uri] = json_result[oslc.resourceShape]['@id'];
