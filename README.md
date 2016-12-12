@@ -1,6 +1,6 @@
 # oslc-service
 
-A Node.js module providing Express middleware to create an [OSLC 3.0](https://tools.oasis-open.org/version-control/svn/oslc-core/trunk/specs/oslc-core.html) server. The service uses the ldp-service Express middleware module which provides MongoDB for persistence, jsonld.js for JSON-LD support, and a few other JavaScript libraries.  A sample app using the OSLC middleware service is running at [http://oslc-browser.mybluemix.net](http://oslc-browser.mybluemix.net).
+A Node.js module providing Express middleware to create an [OSLC 3.0](https://tools.oasis-open.org/version-control/svn/oslc-core/trunk/specs/oslc-core.html) server. The service uses the ldp-service Express middleware module which provides a database of the user's choosing for persistence, jsonld.js for JSON-LD support, and a few other JavaScript libraries.  A sample app using the OSLC middleware service is running at [http://oslc-browser.mybluemix.net](http://oslc-browser.mybluemix.net).
 
 oslc-service supports any OSLC Domain by including the domain vocabulary URIs at open-services.net/ns in the config.json file.
 
@@ -9,11 +9,13 @@ Many thanks to Steve Speicher and Sam Padgett for their valuable contribution to
 Module planning, maintenance and issues can be see at at the [oslc-service](https://hub.jazz.net/project/jamsden/oslc-service/overview) IBM Bluemix DevOps Services project.
 
 
-## Using
+## Using oslc-service
 
 1) Install the required modules
 
-Install [Node.js](http://nodejs.org). 
+Install [Node.js](http://nodejs.org).
+
+Run your database. Below are instructions for using oslc-service with the Apache Jena Fuseki database.
 
 Start [Jena](https://jena.apache.org/download/index.cgi). Download apache-jena-fuseki-2.4.1.tar.gz under Apache Jena Fuseki and unzip it.
 
@@ -37,7 +39,7 @@ Install express.js and create a sample express app
 
 	"dependencies": {"oslc-service": "~0.0.1"},
 
-3) Edit app.js and add whatever Express middleware you need including ldp-service. ldp-service-jena also provides access to its Apache Jena database in case additional middleware needs direct access to the database. ldp-service-jena has not been published to npm yet, so it will need to be access locally.
+3) Edit app.js and add whatever Express middleware you need including ldp-service. ldp-service can be customized to support any type of database (it is currently in production). For setting up ldp-service, we will use ldp-service-jena as an example. ldp-service-jena provides access to its Apache Jena database in case additional middleware needs direct access to the database. ldp-service-jena has not been published to npm yet, so it will need to be access locally.
 
 	var ldpService = require('./ldp-service-jena');
 	app.use(ldpService());
@@ -52,6 +54,8 @@ Install express.js and create a sample express app
 
 Finally, point your browser to
 [http://localhost:3000/](http://localhost:3000/).
+
+To test the oslc-server, we recommend using a browser based REST client that sends requests to http://localhost:3000/. One example is Mozilla Firefox's [RESTClient](https://addons.mozilla.org/en-US/firefox/addon/restclient/).
 
 ## License
 
