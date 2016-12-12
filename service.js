@@ -70,16 +70,19 @@ var oslcRoutes = function(env) {
 			links[key] = link[req.originalUrl][key];
 		}
 
-		ldpService.get(req.originalUrl+"?compact", "application/ld+json", function(err, ires){
+		next();
+/*
+		ldpService.db.get(req.originalUrl+"?compact", "application/ld+json", function(err, ires){
+			console.log("RESPONSE " + ires.statusCode);
 			if(ires.statusCode === 200){
 				links[oslc.Compact] = req.originalUrl+"?compact";
 			}
 
 			// also include implementation constraints
 			res.links(links);
-			next();
+			
 		});
-		
+*/	
 	});
 
 	subApp.get('/properties', function(req, res, next){
@@ -171,9 +174,9 @@ var oslcRoutes = function(env) {
 
 	*/
 
-	function queryResource(shape, decode, req, res){
+	function queryResource(shape, base, decode, req, res){
 
-
+		console.log("QUERY");
 		/*
 			var query = decode.substring(decode.indexOf('?')+1, decode.length);
 			var sparql_query_select = "SELECT ?g ";
@@ -201,6 +204,7 @@ var oslcRoutes = function(env) {
 				Does not take into account any errors
 			*/
 
+			var query = decode.substring(decode.indexOf('?')+1, decode.length);
 			var node = null;
 			var oslc_node = null
 			var amp_node = null
@@ -210,31 +214,40 @@ var oslcRoutes = function(env) {
 
 			for(var i = 0; i < query.length; i++){
 				
-				if(query.charAt(i) === '=' || query.charAt(i) === '>' || query.charAt(i) === '<'){
+				// Does not take into account >, <, <=, >= comparators
+				if(query.charAt(i) === '='){
 	
 					var val_one = query.substring(index, i);
+					console.log("FIRST VAL " + val_one);
 					if(val_one === "oslc.where" || val_one === "oslc.select" || val_one === "oslc.prefix"){
 
 						if(amp_node){
-							amp_node.right = Node(query.charAt(i), Node(val_one, null, null), null);
+							amp_node.right = new Node(query.charAt(i), new Node(val_one, null, null), null);
 							node = amp_node.right;
 						}else{
-							node = Node(query.charAt(i), Node(val_one, null, null), null);
+							node = new Node(query.charAt(i), new Node(val_one, null, null), null);
 						}
 						
 						oslc_node = node;
+						console.log(oslc_node);
 						index = i+1;
 						
 					}else{
 
-						// Loop through
+						index = i;
+
+						while(query.charAt(index) !== '&' && query.charAt(index) !== ' ' && index < query.length){
+							index++;
+						}
+
 						var val_two = query.substring(i+1, index);
-						tmp = Node(query.charAt(i), Node(val_one, null, null), Node(val_two, null, null));
+						console.log("VAL TWO " + val_two);
+						var tmp = new Node(query.charAt(i), new Node(val_one, null, null), new Node(val_two, null, null));
 
 						if(query.charAt(i+val_two.length+1) === ' '){
 							if(query.substring(i+val_two.length+2, i+val_two.length+5) === "and"){
 							
-								and_node = Node("and", tmp, null);
+								and_node = new Node("and", tmp, null);
 								node.right = and_node;
 								i += (val_two.length+5);
 
@@ -253,15 +266,17 @@ var oslcRoutes = function(env) {
 				if(query.charAt(i) === '&'){
 
 					if(oslc_node.left.val === "oslc.select"){
-						node.right = Node(query.substring(index, i), null, null);
+						node.right = new Node(query.substring(index, i), null, null);
 					}
 					
 					if(amp_node === null){
 						left_node = oslc_node;
-						node = Node('&', left_node, null);
+						console.log("LEFT NODE");
+						console.log(left_node);
+						node = new Node('&', left_node, null);
 						amp_node = node;
 					}else{
-						amp_node = Node('&', amp_node, null);
+						amp_node = new Node('&', amp_node, null);
 					}
 					index = i+1;
 
@@ -271,7 +286,7 @@ var oslcRoutes = function(env) {
 
 							if(query.charAt(i) === '{'){
 				
-								open_paran_node = Node('{', Node(query.substring(index, i), null, null), Node('}', null, null));
+								open_paran_node = new Node('{', new Node(query.substring(index, i), null, null), new Node('}', null, null));
 								curl_nodes.push(open_paran_node);
 								pre_curl_node = node;
 								node = open_paran_node;
@@ -297,7 +312,7 @@ var oslcRoutes = function(env) {
 	
 
 					var val = query.substring(index, query.charAt(i));
-					comma_node = Node(',', val, null);
+					comma_node = new Node(',', val, null);
 					node.right = comma_node;
 					node = node.right;
 					index = i+1;
@@ -307,7 +322,10 @@ var oslcRoutes = function(env) {
 			}
 	
 			if(amp_node){
-				ldpService.query(amp_node, function(err, ires){
+				console.log("NODE");
+				console.log(amp_node);
+				console.log(oslc_node);
+				ldpService.db.query(amp_node, function(err, ires){
 
 					if(err){
 						console.error(err.stack);
@@ -317,7 +335,9 @@ var oslcRoutes = function(env) {
 				});
 
 			}else{
-				ldpService.query(oslc_node, function(err, ires){
+				console.log("NODE");
+				console.log(oslc_node);
+				ldpService.db.query(oslc_node, base, function(err, ires){
 
 					if(err){
 						console.error(err.stack);
@@ -329,6 +349,9 @@ var oslcRoutes = function(env) {
 			}
 			
 
+
+		// Code below directly translated OSLC Query to SPARQL, defunct 
+		// Because it only works with Apache Jena or other DB that supports SPARQL
 
 		/*
 					
@@ -706,7 +729,7 @@ var oslcRoutes = function(env) {
 
 		var node = Node("=", Node("oslc.select", null, null), Node("*", null, null));
 
-		ldpService.db.query(node, function(err, ires){
+		ldpService.db.query(node, "", function(err, ires){
 			res.set({'Access-Control-Allow-Origin': '*'});
 			res.json(ires.body);
 		});
@@ -774,11 +797,18 @@ var oslcRoutes = function(env) {
 			file_name = query_dictionary[base];
 			console.log(file_name);
 
-			ldpService.db.get(file_name, "application/ld+json", function(err, ires){
+			if(file_name === undefined){
+				queryResource(null, base, decode, req, res);
+			}else{
 
-				queryResource(JSON.parse(ires.body), decode, req, res);
+				ldpService.db.get(file_name, "application/ld+json", function(err, ires){
 
-			});
+					queryResource(JSON.parse(ires.body), base, decode, req, res);
+
+				});
+
+			}
+			
 			
 		}else{
 			next();
@@ -810,20 +840,22 @@ var oslcRoutes = function(env) {
 
 	function getProperties(file_name){
 
-		var file = JSON.parse(fs.readFileSync("./oslc-service/shape-files/"+file_name+"-shape.json", 'utf8'));
-		var shape = file;
-		console.log("SHAPE READ");
-		var properties = [];
+		ldpService.db.get(file_name, "application/ld+json", function(err, ires){
 
-		for(var i = 0; i < shape["@graph"].length; i++){
+			var shape = ires.body;
+			var properties = [];
+
+			for(var i = 0; i < shape.length; i++){
+			
+				if(shape[i]["@id"] === oslc.Property){
+					properties.add(shape[i]["name"]);			
+				} 
+			}
+
+			return properties;
+
+		});
 		
-			if(shape["@graph"][i]["@id"] === oslc.Property){
-				properties.add(shape["@graph"][i]["name"]);			
-			} 
-		}
-
-		return properties;
-
 	}
 
 	function verifyShape(shape_info, content, req){
@@ -1101,7 +1133,7 @@ var oslcRoutes = function(env) {
 
 	}
 
-	function insertShape(shape_uri){
+	function insertShape(shape_uri, callback){
 
 
 		try{
@@ -1115,15 +1147,14 @@ var oslcRoutes = function(env) {
 				response.on('end', function(){
 					console.log(typeof data);
 
-					ldpService.db.put(shape_uri, data, function(err, ires){
-
+					ldpService.db.put(shape_uri, data, "text/turtle", function(err, ires){
+						console.log(err + " " + ires.statusCode);
 						if(err){
 							console.error(err.stack);
-							return;
+							callback(err);
 						}
-						if(ires.statusCode === 400){
-							res.sendStatus(400);
-							return;
+						if(ires.statusCode === 500){
+							callback(err);
 						}
 					});
 				});
@@ -1189,17 +1220,25 @@ var oslcRoutes = function(env) {
 		            callback(err);
 		        }
 
+		        link[uri] = {};
+
 		       	var json_result = JSON.parse(result);
 
 		        console.log("RESULT");
-		        console.log(json_result["@type"][0]); 
+		        console.log(json_result); 
 
 		        if(json_result['@type'][0] === oslc.CreationFactory){
-		        	json_result[oslc.resourceShape]['@id']
-		        	var creation_uri = json_result[oslc.creation]['@id'];
-		        	console.log(result);
-		        	creation_dictionary[creation_uri] = json_result[oslc.resourceShape]['@id'];
-		        	link[uri]["type"] = json_result[oslc.resourceShape]['@id'];	
+		        	if(json_result[oslc.resourceShape]['@id'].includes(".ttl")){
+
+		        		insertShape(json_result[oslc.resourceShape]['@id'], callback);
+			        	json_result[oslc.resourceShape]['@id']
+			        	var creation_uri = json_result[oslc.creation]['@id'];
+			        	console.log(result);
+			        	creation_dictionary[creation_uri] = json_result[oslc.resourceShape]['@id'];
+			        	link[uri]["type"] = json_result[oslc.resourceShape]['@id'];	
+
+		        	}
+		        	
 		        }
 
 		        if(json_result[oslc.selectionDialog]){
@@ -1212,18 +1251,24 @@ var oslcRoutes = function(env) {
 
 		        if(json_result['@type'][0] === oslc.QueryCapability){
 
-		        	insertShape(json_result[oslc.resourceShape]['@id']);
-		        	var query_uri = json_result[oslc.queryBase]['@id'];
-		        	console.log(result);
-		        	query_dictionary[query_uri] = json_result[oslc.resourceShape]['@id'];
-		        	console.log(query_dictionary[query_uri]);
+		        	if(json_result[oslc.resourceShape]['@id'].includes(".ttl")){
 
-		        	link[uri][type] = json_result[oslc.resourceShape]['@id'];
+		        		var query_uri = json_result[oslc.queryBase]['@id'];
+			        	console.log(result);
+			        	query_dictionary[query_uri] = json_result[oslc.resourceShape]['@id'];
+			        	console.log(query_dictionary[query_uri]);
+
+			        	link[uri]["type"] = json_result[oslc.resourceShape]['@id'];
+
+		        	}
+		        	
 		        	
 		        }
 
 		        if(json_result['@type'][0] === oslc.Dialog){
-		        	link[uri]["type"] = json_result[oslc.resourceShape]['@id'];
+		        	if(json_result[oslc.resourceShape]){
+		        		link[uri]["type"] = json_result[oslc.resourceShape]['@id'];
+		        	}
 		        	
 		        }
 
