@@ -72,20 +72,20 @@ var oslcRoutes = function(env) {
 
 		next();
 
-// Looks for the compact version of the resource. When a compact version doesn't exist,
-// It gives a 500 error and the code stops
-/*
-		ldpService.db.get(req.originalUrl+"?compact", "application/ld+json", function(err, ires){
-			console.log("RESPONSE " + ires.statusCode);
-			if(ires.statusCode === 200){
-				links[oslc.Compact] = req.originalUrl+"?compact";
-			}
+		// Looks for the compact version of the resource. When a compact version doesn't exist,
+		// It gives a 500 error and the code stops
+		/*
+				ldpService.db.get(req.originalUrl+"?compact", "application/ld+json", function(err, ires){
+					console.log("RESPONSE " + ires.statusCode);
+					if(ires.statusCode === 200){
+						links[oslc.Compact] = req.originalUrl+"?compact";
+					}
 
-			// also include implementation constraints
-			res.links(links);
-			
-		});
-*/	
+					// also include implementation constraints
+					res.links(links);
+					
+				});
+		*/	
 	});
 
 	subApp.get('/properties', function(req, res, next){
@@ -175,171 +175,175 @@ var oslcRoutes = function(env) {
 	function queryResource(shape, base, decode, req, res){
 
 		console.log("QUERY");
-		/*
-			var query = decode.substring(decode.indexOf('?')+1, decode.length);
-			var sparql_query_select = "SELECT ?g ";
-			var sparql_query_where = "WHERE { GRAPH ?g { ";
-			var sparql_query_prefix = "";
-			var sparql_query_orderBy = "";
 
-		*/
-
-		// Construct SPARQL Query
-		// Use resource shapes to determine that vocab used is accurate
-			class Node {
+		class Node {
 	
-				constructor(val, left, right){
-					this.val = val;
-					this.left = left;
-					this.right = right;
-				}
-
+			constructor(val, left, right){
+				this.val = val;
+				this.left = left;
+				this.right = right;
 			}
-				
-			var query = decode.substring(decode.indexOf('?')+1, decode.length);
-			var node = null;
-			var oslc_node = null
-			var amp_node = null
-			var curl_node_stack = new Array();
 
-			var index = 0;
-
-			for(var i = 0; i < query.length; i++){
+		}
 				
-				// Does not take into account >, <, <=, >= comparators
-				if(query.charAt(i) === '='){
+		var query = decode.substring(decode.indexOf('?')+1, decode.length);
+		var node = null;
+		var oslc_node = null
+		var amp_node = null
+		var curl_node_stack = new Array();
+
+		var index = 0;
+
+		for(var i = 0; i < query.length; i++){
+				
+			if(query.charAt(i) === '=' || query.charAt(i) === '>' || query.charAt(i) === '<'){
 	
-					var val_one = query.substring(index, i);
-					console.log("FIRST VAL " + val_one);
-					if(val_one === "oslc.where" || val_one === "oslc.select" || val_one === "oslc.prefix"){
+				var val_one = query.substring(index, i);
+				console.log("FIRST VAL " + val_one);
+				if(val_one === "oslc.where" || val_one === "oslc.select" || val_one === "oslc.prefix"){
 
-						if(amp_node){
-							amp_node.right = new Node(query.charAt(i), new Node(val_one, null, null), null);
-							node = amp_node.right;
-						}else{
-							node = new Node(query.charAt(i), new Node(val_one, null, null), null);
-						}
-						
-						oslc_node = node;
-						console.log(oslc_node);
-						index = i+1;
-						
+					if(amp_node){
+						amp_node.right = new Node(query.charAt(i), new Node(val_one, null, null), null);
+						node = amp_node.right;
 					}else{
-
-						index = i;
-
-						while(query.charAt(index) !== '&' && query.charAt(index) !== ' ' && index < query.length){
-							index++;
-						}
-
-						var val_two = query.substring(i+1, index);
-						console.log("VAL TWO " + val_two);
-						var tmp = new Node(query.charAt(i), new Node(val_one, null, null), new Node(val_two, null, null));
-
-						if(query.charAt(i+val_two.length+1) === ' '){
-							if(query.substring(i+val_two.length+2, i+val_two.length+5) === "and"){
-							
-								and_node = new Node("and", tmp, null);
-								node.right = and_node;
-								i += (val_two.length+5);
-
-								node = node.right;
-							}
-						}else{
-							node.right = tmp;
-						}
-
+						node = new Node(query.charAt(i), new Node(val_one, null, null), null);
+					}
 						
+					oslc_node = node;
+					console.log(oslc_node);
+					index = i+1;
+						
+				}else{
 
-					}			
+					/* if(!validResource(shape, val_one)){
+						res.sendStatus(400);
+					}*/	
 
-				}
+					index = i;
 
-				if(query.charAt(i) === '&'){
+					while(query.charAt(index) !== '&' && query.charAt(index) !== ' ' && index < query.length){
+						index++;
+					}
 
-					if(oslc_node.left.val === "oslc.select"){
-						node.right = new Node(query.substring(index, i), null, null);
+					var val_two;
+					if(query.charAt(i+1) === '='){
+						val_two = query.substring(i+2, index);
+					}else{
+						var val_two = query.substring(i+1, index);
 					}
 					
-					if(amp_node === null){
-						left_node = oslc_node;
-						console.log("LEFT NODE");
-						console.log(left_node);
-						node = new Node('&', left_node, null);
-						amp_node = node;
+					console.log("VAL TWO " + val_two);
+					var tmp;
+
+					if(query.charAt(i+1) === '=' && (query.charAt(i) === '>' || query.charAt(i) === '<')){
+						tmp = new Node(query.substring(i, i+2), new Node(val_one, null, null), new Node(val_two, null, null));
 					}else{
-						amp_node = new Node('&', amp_node, null);
+						tmp = new Node(query.charAt(i), new Node(val_one, null, null), new Node(val_two, null, null));
 					}
-					index = i+1;
+					
 
-				}
+					if(query.charAt(i+val_two.length+1) === ' '){
+						if(query.substring(i+val_two.length+2, i+val_two.length+5) === "and"){
+							
+							and_node = new Node("and", tmp, null);
+							node.right = and_node;
+							i += (val_two.length+5);
 
-						// Unfinished. Does not take into account ',' within a {}
-						/*
-							if(query.charAt(i) === '{'){
-				
-								open_paran_node = new Node('{', new Node(query.substring(index, i), null, null), new Node('}', null, null));
-								curl_nodes.push(open_paran_node);
-								pre_curl_node = node;
-								node = open_paran_node;
+							node = node.right;
+						}
+					}else{
+						node.right = tmp;
+					}			
 
-							}
-
-							if(query.charAt(i) === '}'){
-								
-								ret_node = curl_nodes.pop();
-
-								if(curl_nodes.length === 0){
-									pre_curl_node.right = ret_node;
-									node = pre_curl_node.right;
-								}else{
-									curl_nodes[curl_nodes.length-1].right.left = ret_node;
-								}
-
-							}
-						*/
-
-
-
-				if(query.charAt(i) === ','){
-	
-
-					var val = query.substring(index, query.charAt(i));
-					comma_node = new Node(',', val, null);
-					node.right = comma_node;
-					node = node.right;
-					index = i+1;
-
-				}
+				}			
 
 			}
-	
-			if(amp_node){
-				console.log("NODE");
-				console.log(amp_node);
-				console.log(oslc_node);
-				ldpService.db.query(amp_node, function(err, ires){
 
-					if(err){
-						console.error(err.stack);
-						res.sendStatus(500);
-					}
+			if(query.charAt(i) === '&'){
 
-				});
-
-			}else{
-				console.log("NODE");
-				console.log(oslc_node);
-				ldpService.db.query(oslc_node, base, function(err, ires){
-
-					if(err){
-						console.error(err.stack);
-						res.sendStatus(500);
-					}
-
-				});
+				if(oslc_node.left.val === "oslc.select"){
+					node.right = new Node(query.substring(index, i), null, null);
+				}
+					
+				if(amp_node === null){
+					left_node = oslc_node;
+					console.log("LEFT NODE");
+					console.log(left_node);
+					node = new Node('&', left_node, null);
+					amp_node = node;
+				}else{
+					amp_node = new Node('&', amp_node, null);
+				}
+				index = i+1;
 
 			}
+
+				// Unfinished. Does not take into account ',' within a {}
+				/*
+					if(query.charAt(i) === '{'){
+			
+						open_paran_node = new Node('{', new Node(query.substring(index, i), null, null), new Node('}', null, null));
+						curl_nodes.push(open_paran_node);
+						pre_curl_node = node;
+						node = open_paran_node;
+
+					}
+
+					if(query.charAt(i) === '}'){
+							
+						ret_node = curl_nodes.pop();
+
+						if(curl_nodes.length === 0){
+							pre_curl_node.right = ret_node;
+							node = pre_curl_node.right;
+						}else{
+							curl_nodes[curl_nodes.length-1].right.left = ret_node;
+						}
+
+					}
+				*/
+
+
+
+			if(query.charAt(i) === ','){
+	
+
+				var val = query.substring(index, query.charAt(i));
+				comma_node = new Node(',', val, null);
+				node.right = comma_node;
+				node = node.right;
+				index = i+1;
+
+			}
+
+		}
+	
+		if(amp_node){
+			console.log("NODE");
+			console.log(amp_node);
+			console.log(oslc_node);
+			ldpService.db.query(amp_node, function(err, ires){
+
+				if(err){
+					console.error(err.stack);
+					res.sendStatus(500);
+				}
+
+			});
+
+		}else{
+			console.log("NODE");
+			console.log(oslc_node);
+			ldpService.db.query(oslc_node, base, function(err, ires){
+
+				if(err){
+					console.error(err.stack);
+					res.sendStatus(500);
+					}
+
+			});
+
+		}
 			
 
 
@@ -1114,11 +1118,16 @@ var oslcRoutes = function(env) {
 
 			}
 
+
+
+
 	function insertShape(shape_uri, callback){
 
-
 		try{
-			http.get(shape_uri, function(response){
+
+			var use = (shape_uri.includes("http")) ? http : https;
+
+			use.get(shape_uri, function(response){
 				var data = "";								
 				response.on('data', function(chunk){
 					console.log(typeof chunk);
