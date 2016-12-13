@@ -71,6 +71,9 @@ var oslcRoutes = function(env) {
 		}
 
 		next();
+
+// Looks for the compact version of the resource. When a compact version doesn't exist,
+// It gives a 500 error and the code stops
 /*
 		ldpService.db.get(req.originalUrl+"?compact", "application/ld+json", function(err, ires){
 			console.log("RESPONSE " + ires.statusCode);
@@ -109,6 +112,7 @@ var oslcRoutes = function(env) {
 		
 		console.log(JSON.stringify(req.body));
 
+		// Not right... should have a shape that corresponds with a compact resource
 		if(req.baseUrl.includes("?compact")){
 			ldpService.db.put(req.baseUrl, req.body, "application/ld+json", function(err, ires){
 
@@ -141,22 +145,12 @@ var oslcRoutes = function(env) {
 
 	});
 
-
-	/*
-		test strategy for Sam Padgett
-		OSLC 3.0 test platform
-		wrote a test case for each clause
-		framework for executing and evaluating those cases
-		see if server is OSLC 3.0 compliant
-	*/
-
-
 	function validResource(shape, resource){
 
-		for(var i = 0; i < shape["@graph"]; i++){
-			if(shape["@graph"][i]["@type"] === oslc.Property){
+		for(var i = 0; i < shape; i++){
+			if(shape[i]["@type"] === oslc.Property){
 
-				if(shape["@graph"][i]["name"] === resource){
+				if(shape[i]["name"] === resource){
 					return true;
 				}
 
@@ -197,13 +191,7 @@ var oslcRoutes = function(env) {
 				}
 
 			}
-
-			/*
-				Test code to create an AST 
-				Need to create an OSLC node that finds root of OSLC
-				Does not take into account any errors
-			*/
-
+				
 			var query = decode.substring(decode.indexOf('?')+1, decode.length);
 			var node = null;
 			var oslc_node = null
@@ -282,8 +270,8 @@ var oslcRoutes = function(env) {
 
 				}
 
-							// Unfinished. Does not take into account ',' within a {}
-
+						// Unfinished. Does not take into account ',' within a {}
+						/*
 							if(query.charAt(i) === '{'){
 				
 								open_paran_node = new Node('{', new Node(query.substring(index, i), null, null), new Node('}', null, null));
@@ -305,6 +293,7 @@ var oslcRoutes = function(env) {
 								}
 
 							}
+						*/
 
 
 
@@ -367,17 +356,6 @@ var oslcRoutes = function(env) {
 					index_follow = i+1;
 					// check if param is valid
 					// http://example.com/bugs?oslc.where=cm:severity="high" and dcterms:created>"2010-04-01"
-
-					//
-					//
-					//									
-					//					
-					//				
-					//	
-					//
-					//
-					//
-					//
 							
 					while(query.charAt(index_follow) != '&' && index_follow < query.length && query.charAt(index_follow) != ',' && query.charAt(index_follow) != '}'){
 		
@@ -1114,24 +1092,24 @@ var oslcRoutes = function(env) {
 
 			function createRootContainer(env, callback) {
 		
-			var file = fs.readFileSync(env.services, 'utf8');
-			var services = JSON.parse(file);
-			console.log(services);
-			//readShapes(services, callback);
-			var obj = {};
-			obj.rawBody = file.toString();
-			console.log(obj.rawBody);
-			json.parse(obj, env.ldpBase, function(err, triples){
-				if(err){
-					callback(err);
-				}
-				console.log(triples);
-				var mark = Date.now(); // used to identify resources
-				findBlankNodes(env.ldpBase+services["@graph"][0]["@id"], env.ldpBase, triples, json.serialize, true, mark, callback);
-				callback(null);
-			});
+				var file = fs.readFileSync(env.services, 'utf8');
+				var services = JSON.parse(file);
+				console.log(services);
+				//readShapes(services, callback);
+				var obj = {};
+				obj.rawBody = file.toString();
+				console.log(obj.rawBody);
+				json.parse(obj, env.ldpBase, function(err, triples){
+					if(err){
+						callback(err);
+					}
+					console.log(triples);
+					var mark = Date.now(); // used to identify resources
+					findBlankNodes(env.ldpBase+services["@graph"][0]["@id"], env.ldpBase, triples, json.serialize, true, mark, callback);
+					callback(null);
+				});
 
-	}
+			}
 
 	function insertShape(shape_uri, callback){
 
@@ -1171,9 +1149,25 @@ var oslcRoutes = function(env) {
 
 	}
 
-
 	function findBlankNodes(blank_subject, main_uri, triples, serialize, first_time, mark, callback){
+
 	    var new_triples = [];
+
+	    var service_type = "";
+
+	    for(var i = 0; i < triples.length; i++){
+
+		        console.log("LOOKING FOR: " + blank_subject);
+		          if(triples[i].subject === blank_subject){
+
+			          if(triples[i].predicate === oslc.Type){
+			          	   console.log("FOUND NODE: " + triples[i].object);
+			               obj = findBlankNodes(triples[i].object, uri, triples, serialize, first_time, mark++, callback);
+			               
+			          }
+		          }
+
+		}
 
 	    return assignURI(main_uri, "/", first_time, mark, function(err, uri, first_time){
 
@@ -1191,7 +1185,7 @@ var oslcRoutes = function(env) {
 			          	   console.log("FOUND NODE: " + triples[i].object);
 			               obj = findBlankNodes(triples[i].object, uri, triples, serialize, first_time, mark++, callback);
 			               
-			          }else if(triples[i].object.includes("ex:")){ 	// implies that there's an external file
+			          }else if(triples[i].object.includes("ex:")){ 	// implies that there's an external file, needs to be checked
 			          		var file = fs.readFileSync(triples[i].object);
 							obj = findBlankNodes(triples[i].object, uri, triples, serialize, first_time, mark++, callback);
 							json.parse(file, function(err, ex_triples){

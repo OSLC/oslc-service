@@ -9,8 +9,7 @@
   "dependencies": {
     "express": "~4.13.4",
     "n3": "~0.4.5",
-    "jsonld": "~0.4.2",
-    "ldp-service": "~0.0.2"
+    "jsonld": "~0.4.2"
   },
   "engines": {
     "node": "~5.1.0"
