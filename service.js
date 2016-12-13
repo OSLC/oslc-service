@@ -196,8 +196,9 @@ var oslcRoutes = function(env) {
 
 		for(var i = 0; i < query.length; i++){
 				
-			if(query.charAt(i) === '=' || query.charAt(i) === '>' || query.charAt(i) === '<'){
-	
+			// <, > not implemented due to issues with PREFIX
+			if(query.charAt(i) === '='){
+
 				var val_one = query.substring(index, i);
 				console.log("FIRST VAL " + val_one);
 				if(val_one === "oslc.where" || val_one === "oslc.select" || val_one === "oslc.prefix"){
@@ -221,7 +222,46 @@ var oslcRoutes = function(env) {
 
 					index = i;
 
-					while(query.charAt(index) !== '&' && query.charAt(index) !== ' ' && index < query.length){
+					while(query.charAt(index) !== '&' && query.charAt(index) !== ' ' && query.charAt(index) !== ',' && index < query.length){
+						index++;
+					}
+
+					var val_two = query.substring(i+1, index);
+					
+					
+					console.log("VAL TWO " + val_two);
+					var tmp = new Node(query.charAt(i), new Node(val_one, null, null), new Node(val_two, null, null));
+
+					if(query.charAt(i+val_two.length+1) === ' '){
+						if(query.substring(i+val_two.length+2, i+val_two.length+5) === "and"){
+							
+							and_node = new Node("and", tmp, null);
+							node.right = and_node;
+							i += (val_two.length+5);
+
+							node = node.right;
+						}
+					}else{
+						node.right = tmp;
+					}			
+
+				}			
+
+			}
+
+			/*
+			// Attempting to check if the following string is a URI when looking at oslc.prefix
+			if((query.charAt(i) === '<' || query.charAt(i) === '>') && query.charAt(i+1) !== 'h'){
+
+				var val_one = query.substring(index, i);
+
+				// if(!validResource(shape, val_one)){
+				//		res.sendStatus(400);
+				//	}
+
+					index = i;
+
+					while(query.charAt(index) !== '&' && query.charAt(index) !== ' ' && query.charAt(index) !== ',' && index < query.length){
 						index++;
 					}
 
@@ -229,7 +269,7 @@ var oslcRoutes = function(env) {
 					if(query.charAt(i+1) === '='){
 						val_two = query.substring(i+2, index);
 					}else{
-						var val_two = query.substring(i+1, index);
+						val_two = query.substring(i+1, index);
 					}
 					
 					console.log("VAL TWO " + val_two);
@@ -253,11 +293,11 @@ var oslcRoutes = function(env) {
 						}
 					}else{
 						node.right = tmp;
-					}			
+					}
 
-				}			
+			} 
 
-			}
+			*/
 
 			if(query.charAt(i) === '&'){
 
