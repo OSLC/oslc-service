@@ -166,6 +166,10 @@ var oslcRoutes = function(env) {
 
 		http://localhost:3000/res?oslc.where=dcterms:title="hello" and created="08-09-2014"
 
+		http://example.com/bugs?oslc.where=cm:severity="high" and dcterms:created>"2010-04-01"
+		http://example.com/bugs?oslc.select=dcterms:created,dcterms:creator{foaf:familyName}&oslc.where=cm:severity="high"
+					
+
 	*/
 
 	function queryResource(shape, base, decode, req, res){
@@ -406,8 +410,6 @@ var oslcRoutes = function(env) {
 					// http://localhost:3000/r/tasks?oslc.prefix%3Dcm%3D%3Chttp%3A%2F%2Fqm.example.com%2Fns%3E%2Cdcterms%3D%3Chttp%3A%2F%2Fdcterms.example.com%3E%26oslc.select%3Ddcterms%3Acreated%2Cdcterms%3Acreator%26oslc.where%3Dcm%3Aseverity%3D%22high%22
 
 					// check if param is valid
-					// http://example.com/bugs?oslc.where=cm:severity="high" and dcterms:created>"2010-04-01"
-					// http://example.com/bugs?oslc.select=dcterms:created,dcterms:creator{foaf:familyName}&oslc.where=cm:severity="high"
 					// 
 					// SELECT ?dcterms:created, ?foaf:familyName WHERE GRAPH ?g {?s cm:severity "high". ?s dcterms:created ?dcterms:created. ?s dcterms:creator ?dcterms:creator. ?dcterms:creator foaf:familyName ?foaf:familyName}
 					// 
@@ -1076,6 +1078,7 @@ var oslcRoutes = function(env) {
 	subApp.use(ldpService(env));
 	console.log("OSLC Set-Up Complete");
 	ldpService.db.get(env.ldpBase, 'application/ld+json', function(err, document) {
+
 			console.log(err + " " + document.statusCode);
 			if (err) {
 				console.log(err.stack);
@@ -1104,8 +1107,8 @@ var oslcRoutes = function(env) {
 						callback(err);
 					}
 					console.log(triples);
-					var mark = Date.now(); // used to identify resources
-					findBlankNodes(env.ldpBase+services["@graph"][0]["@id"], env.ldpBase, triples, json.serialize, true, mark, callback);
+					var service_num = {};
+					findBlankNodes(env.ldpBase+services["@graph"][0]["@id"], env.ldpBase, triples, json.serialize, true, service_num, callback);
 					callback(null);
 				});
 
@@ -1149,7 +1152,7 @@ var oslcRoutes = function(env) {
 
 	}
 
-	function findBlankNodes(blank_subject, main_uri, triples, serialize, first_time, mark, callback){
+	function findBlankNodes(blank_subject, main_uri, triples, serialize, first_time, service_num, callback){
 
 	    var new_triples = [];
 
@@ -1157,19 +1160,19 @@ var oslcRoutes = function(env) {
 
 	    for(var i = 0; i < triples.length; i++){
 
-		        console.log("LOOKING FOR: " + blank_subject);
+		        console.log("LOOKING FOR TYPE: " + blank_subject);
 		          if(triples[i].subject === blank_subject){
 
-			          if(triples[i].predicate === oslc.Type){
-			          	   console.log("FOUND NODE: " + triples[i].object);
-			               obj = findBlankNodes(triples[i].object, uri, triples, serialize, first_time, mark++, callback);
+			          if(triples[i].predicate === "http://www.w3.org/1999/02/22-rdf-syntax-ns#type"){
+			          	   console.log("FOUND NODE TYPE: " + triples[i].object);
+			               service_type = triples[i].object;
 			               
 			          }
 		          }
 
 		}
 
-	    return assignURI(main_uri, "/", first_time, mark, function(err, uri, first_time){
+	    return assignURI(main_uri, service_type, "/", first_time, service_num, function(err, uri, first_time){
 
 	    	if(err){
 	    		callback(err);
@@ -1183,16 +1186,16 @@ var oslcRoutes = function(env) {
 
 			          if(triples[i].object.includes("_:b")){
 			          	   console.log("FOUND NODE: " + triples[i].object);
-			               obj = findBlankNodes(triples[i].object, uri, triples, serialize, first_time, mark++, callback);
+			               obj = findBlankNodes(triples[i].object, uri, triples, serialize, first_time, service_num, callback);
 			               
 			          }else if(triples[i].object.includes("ex:")){ 	// implies that there's an external file, needs to be checked
 			          		var file = fs.readFileSync(triples[i].object);
-							obj = findBlankNodes(triples[i].object, uri, triples, serialize, first_time, mark++, callback);
+							obj = findBlankNodes(triples[i].object, uri, triples, serialize, first_time, service_num, callback);
 							json.parse(file, function(err, ex_triples){
 								if(err){
 									callback(err);
 								}
-								findBlankNodes(obj, uri, ex_triples, serialize, true, mark++, callback);
+								findBlankNodes(obj, uri, ex_triples, serialize, true, service_num, callback);
 							});
 							
 			          }else{
@@ -1293,11 +1296,32 @@ var oslcRoutes = function(env) {
 		}
 
 		// generates and reserves a unique URI with base URI 'container'
-		function uniqueURI(container, first_time, mark, callback) {
+		function uniqueURI(container, service_type, first_time, mark, callback) {
 			if(!first_time){
-				container = addPath(container, 'res' + mark);
+
+				var name = service_type.substring(service_type.indexOf('#')+1, service_type.length).toLowerCase();
+
+				if(service_num[name] === undefined){
+					service_num[name] = 0;
+				}
+				service_num[name]++;
+				console.log("NAME");
+				console.log(service_num[name]);
+				console.log(name);
+				container = addPath(container, name + "-" + service_num[name]);
+
+				
 			}
 			first_time = false;
+
+			if(service_type === oslc.ServiceProvider){
+				container += "serviceprovider";
+			}
+
+			if(service_type === oslc.ServiceProviderCatalog){
+				container += "spc";
+			}
+
 			console.log("CANDIDATE: " + container);
 			ldpService.db.reserveURI(container, function(err) {
 
@@ -1314,7 +1338,7 @@ var oslcRoutes = function(env) {
 
 		// reserves a unique URI for a new subApp. will use slug if available,
 		// but falls back to the usual naming scheme if slug is already used
-		function assignURI(container, slug, first_time, mark, callback) {
+		function assignURI(container, service_type, slug, first_time, mark, callback) {
 /*
 			if (slug) {
 				var candidate = addPath(container, slug);
@@ -1333,7 +1357,7 @@ var oslcRoutes = function(env) {
 			} else {
 */	
 				//console.log("CANDIDATE: " + container);
-				return uniqueURI(container, first_time, mark, callback);
+				return uniqueURI(container, service_type, first_time, mark, callback);
 			//}
 		}
 	     
