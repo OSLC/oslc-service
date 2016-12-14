@@ -94,6 +94,26 @@ var oslcRoutes = function(env) {
 		res.send(properties);
 	});
 
+	function getProperties(file_name){
+
+		ldpService.db.get(file_name, "application/ld+json", function(err, ires){
+
+			var shape = ires.body;
+			var properties = [];
+
+			for(var i = 0; i < shape.length; i++){
+			
+				if(shape[i]["@id"] === oslc.Property){
+					properties.add(shape[i]["name"]);			
+				} 
+			}
+
+			return properties;
+
+		});
+		
+	}
+
 	resource.options(function(req, res, next) {
 		console.log('OSLC OPTIONS request on:'+req.path);
 		next();
@@ -142,6 +162,310 @@ var oslcRoutes = function(env) {
 			next();
 					
 		});
+
+	});
+
+	function check(req, res, shape_to_get, callback){
+		var content = {};
+		content.rawBody = JSON.stringify(req.body);
+		
+		var index = 0;
+
+		var parse, serialize;
+
+		if(env.contentType === 'JSON'){
+			parse = json.parse;
+		}else{
+			parse = turtle.parse;
+		}
+
+		console.log(req.body);
+		console.log(content.rawBody);
+
+		parse(content, '', function(err, triples){
+			
+			if(err){
+				console.log(err.stackCode);
+				callback([err, false]);
+			}
+
+			var errors_to_report = new Array();
+
+			//var file = JSON.parse(fs.readFileSync("../oslc-service/shape-files/"+req.originalUrl+".json", 'utf8'));
+			
+			ldpService.db.get(shape_to_get, "application/ld+json", function(err, ires){
+
+				preProcessVerifyShape(JSON.parse(ires.body), triples, req, callback);
+
+			});
+			
+
+		});
+
+	}
+
+	function preProcessVerifyShape(file, triples, req, callback){
+
+		errors_to_report = verifyShape(file, triples, req);
+		var results = {};
+		console.log("Errors: " + errors_to_report + " " + errors_to_report.length);
+		if(errors_to_report.length > 0){
+			results.error = null;
+			results.problems = errors_to_report;
+			callback(results);
+			return;
+		}
+
+		results.error = null;
+		results.problems = [];
+		callback(results);
+	}
+
+	function verifyShape(shape_info, content, req){
+
+		var shape = shape_info["@graph"];
+		var errors = [];
+		// var base_uri_shape = "https://tools.oasis-open.org/version-control/svn/oslc-core/trunk/specs/shapes/";
+
+		// base_uri_shape+shape+"-shape.ttl#dcterms-title"
+
+		// Every time return false is written that means append problem to a list
+
+		console.log(content);
+		for(var i = 0; i < shape.length; i++){
+			console.log(shape[i]["@id"]);
+			console.log(shape[i]["@type"]);
+
+			var resource_type_found = false;
+
+			// Not checking 'describes' correctly, need to fix
+			/*
+			if(shape[i]["@type"] === "oslc:ResourceShape"){
+				for(var j = 0; j < content.length; j++){
+					console.log(content[j].predicate);
+					if(content[j].predicate === oslc.Type){
+						console.log("True");
+						if(content[j].object === shape[i]["describes"]){
+							resource_type_found = true;
+						}
+					}
+				}
+
+				if(!resource_type_found){
+					errors.push("Describes is " + shape[i]["describes"]);
+				}
+			}
+			*/
+
+			if(shape[i]["@type"] === "oslc:Property"){
+
+				var found = false;
+				for(var k = 0; k < content.length; k++){
+					
+					if(content[k].predicate === oslc.oslc+shape[i]["name"] || content[k].predicate === "http://purl.org/dc/terms/"+shape[i]["name"]){
+						found = true;
+						var expression = new RegExp("(^(http|https)://www.)(\\w+).(\\w+$)");
+
+						if(shape[i]["oslc:readOnly"]){
+							if(shape[i]["oslc:readOnly"] === true && (req.method === "PUT" || req.method === "PATCH")){
+								errors.push(shape[i]["name"] + ": readOnly is " + shape[i]["oslc:readOnly"]);
+							}
+						}
+
+						if(shape[i]["occurs"]){
+
+							if(shape[i]["occurs"] === "oslc:Zero-or-one" || shape[i]["occurs"] === "oslc:Exactly-one"){
+
+								for(var z = k+1; z < content.length; z++){
+									console.log(z + " " + oslc.oslc+shape[i]["name"]);
+									if(content[z].predicate === oslc.oslc+shape[i]["name"]){
+										errors.push(shape[i]["name"] + ": occurs is " + shape[i]["occurs"]);
+										break;
+									}
+								}
+							}
+
+						}
+						
+
+						if(shape[i]["valueType"]){
+
+							for(var z = k; z < content.length; z++){
+
+								if(content[z].predicate === oslc.oslc+shape[i]["name"]){
+									
+									if((!shape[i]["valueType"].includes(typeof content[z].object)) && (!expression.test(content[z].object) && shape[i]["valueType"] === oslc.Resource) && (!expression.test(content[z].object) && shape[i]["valueType"] === oslc.LocalResource)){
+										errors.push(shape[i]["name"] + ": valueType is " + shape[i]["valueType"]);
+									}
+								}
+							}
+						}
+
+						if(shape[i]["maxSize"]){
+
+							for(var z = k+1; z < content.length; z++){
+
+								if(content[z].predicate === oslc.oslc+shape[i]["name"]){
+									
+									if(typeof content[z].object === 'string'){
+										if(expression.test(content[z].object)){
+											continue;
+										}else if(content[z].object.length > shape[i]["maxSize"]){
+											errors.push(shape[i]["name"] + ": maxSize is " + shape[i]["maxSize"]);
+										}
+										
+									}else{
+										if(content[z].object > shape[i]["maxSize"]){
+											errors.push(shape[i]["name"] + ": maxSize is " + shape[i]["maxSize"]);
+										}
+									}
+
+								}
+							}
+						}
+
+						if(shape[i]["representation"]){
+
+							for(var z = k; z < content.length; z++){
+
+								if(content[z].predicate === oslc.oslc+shape[i]["name"]){
+									if(content[z].object.includes("_b") && shape[i]["representation"] === oslc.Reference){
+										errors.push(shape[i]["name"] + ": representation is " + shape[i]["representation"]);
+									}else if(!expression.test(content[z].object) && shape[i]["representation"] === oslc.Reference){
+										errors.push(shape[i]["name"] + ": representation is " + shape[i]["representation"]);
+									}else if(content[z].object.includes("_b") && shape[i]["representation"] === oslc.Inline){
+										var blank_node_triple = getBlankTripleType(content, content[z].object);
+
+										if(blank_node_triple.object !== oslc.oslc+shape[i]["range"]){
+											errors.push(shape[i]["name"] + ": range is" + shape[i]["range"]);
+										}
+									}
+								}
+							}
+						}
+
+					}
+
+				}
+				
+
+				if(!found){
+					if(shape[i]["occurs"] === "oslc:Exactly-one" || shape[i]["occurs"] === "oslc:One-or-many"){
+						errors.push(shape[i]["name"] + ": occurs is " + shape[i]["occurs"]);
+					}
+				}
+
+				
+			}
+
+		}
+
+		return errors;
+
+	}
+
+	var resource_uri = undefined;
+	subApp.get('/ResourceInfo', function(req, res) {
+
+		ldpService.db.get(resource_uri, "application/ld+json", function(err, ires){
+
+			res.sendJSON(ires.body);
+
+		});
+
+	});
+
+	// Used for initializing Selection Dialog
+	subApp.get('/all', function(req, res){
+
+		// Need to remove SPARQL, how to populate the Selection Dialog
+
+		var node = Node("=", Node("oslc.select", null, null), Node("*", null, null));
+
+		ldpService.db.query(node, "", function(err, ires){
+			res.set({'Access-Control-Allow-Origin': '*'});
+			res.json(ires.body);
+		});
+
+	});
+
+	resource.get(function(req, res, next) {
+		console.log('OSLC GET request on:'+req.path);
+		console.log(req.originalUrl);
+
+		// Implements UI Preview
+		if(req['Accept'] === 'application/x-oslc-compact+json'){
+
+			var compact = {};
+
+			ldpService.db.get(req.originalUrl, "application/ld+json", function(err, ires){
+				compact.title = JSON.parse(ires.body)["name"];
+				compact.smallPreview = {};
+				compact.largePreview = {};
+
+				compact.smallPreview.hintWidth = "45ex";
+				compact.smallPreview.hintHeight = "20ex";
+				compact.document = req.baseUrl+"?preview=small";
+
+				compact.largePreview.hintWidth = "60ex";
+				compact.largePreview.hintHeight = "30ex";
+				compact.document = req.baseUrl+"?preview=large";
+
+				res.body = compact;
+
+				// Set header to be JSON
+				res.sendStatus(200);
+
+			});
+
+		}else if(req.originalUrl.includes("?preview=large")){
+
+			resource_uri = req.originalUrl.substring(0, req.originalUrl.indexOf('?'));
+			res.set('Content-Type', 'text/html');
+			res.send(path.resolve("./preview/preview-large.html"));
+
+		}else if(req.originalUrl.includes("?preview=small")){
+
+			resource_uri = req.originalUrl.substring(0, req.originalUrl.indexOf('?'));
+			res.set('Content-Type', 'text/html');
+			res.send(path.resolve("./preview/preview-small.html"));
+
+		}else if(req.originalUrl.includes("/selection-dialog")){
+			res.set('Content-Type', 'text/html');
+			res.send(path.resolve("./dialog/dialog-select.html"));
+
+		}else if(req.originalUrl.includes("/creation-dialog")){
+			console.log("CREATION");
+			res.set('Content-Type', 'text/html');
+			console.log(path.resolve("./dialog/dialog-create.html"));
+			res.sendFile(path.resolve("./dialog/dialog-create.html")); // Sends the contents of the file, so the HTML
+
+		}else if(req.originalUrl.includes("?")){
+			var base = req.originalUrl.substring(0, req.originalUrl.indexOf('?'));
+			// Need to replace '/' w/ %2F to be in compliance w/ URI
+			console.log("QUERY BASE " + base);
+			
+			var decode = decodeURIComponent(req.originalUrl);
+
+			file_name = query_dictionary[base];
+			console.log(file_name);
+
+			if(file_name === undefined){
+				queryResource(null, base, decode, req, res);
+			}else{
+
+				ldpService.db.get(file_name, "application/ld+json", function(err, ires){
+
+					queryResource(JSON.parse(ires.body), base, decode, req, res);
+
+				});
+
+			}
+			
+			
+		}else{
+			next();
+		}
 
 	});
 
@@ -251,7 +575,7 @@ var oslcRoutes = function(env) {
 
 			/*
 			// Attempting to check if the following string is a URI when looking at oslc.prefix
-			if((query.charAt(i) === '<' || query.charAt(i) === '>') && query.charAt(i+1) !== 'h'){
+			if((query.charAt(i) === '<' || query.charAt(i) === '>') && oslc_node.left.val === "oslc.where"){
 
 				var val_one = query.substring(index, i);
 
@@ -735,118 +1059,18 @@ var oslcRoutes = function(env) {
 
 	}
 
-	var resource_uri = undefined;
-	subApp.get('/ResourceInfo', function(req, res) {
-
-		ldpService.db.get(resource_uri, "application/ld+json", function(err, ires){
-
-			res.sendJSON(ires.body);
-
-		});
-
-	});
-
-	// Used for initializing Selection Dialog
-	subApp.get('/all', function(req, res){
-
-		// Need to remove SPARQL, how to populate the Selection Dialog
-
-		var node = Node("=", Node("oslc.select", null, null), Node("*", null, null));
-
-		ldpService.db.query(node, "", function(err, ires){
-			res.set({'Access-Control-Allow-Origin': '*'});
-			res.json(ires.body);
-		});
-
-	});
-
-	resource.get(function(req, res, next) {
-		console.log('OSLC GET request on:'+req.path);
-		console.log(req.originalUrl);
-
-		// Implements UI Preview
-		if(req['Accept'] === 'application/x-oslc-compact+json'){
-
-			var compact = {};
-
-			ldpService.db.get(req.originalUrl, "application/ld+json", function(err, ires){
-				compact.title = JSON.parse(ires.body)["name"];
-				compact.smallPreview = {};
-				compact.largePreview = {};
-
-				compact.smallPreview.hintWidth = "45ex";
-				compact.smallPreview.hintHeight = "20ex";
-				compact.document = req.baseUrl+"?preview=small";
-
-				compact.largePreview.hintWidth = "60ex";
-				compact.largePreview.hintHeight = "30ex";
-				compact.document = req.baseUrl+"?preview=large";
-
-				res.body = compact;
-
-				// Set header to be JSON
-				res.sendStatus(200);
-
-			});
-
-		}else if(req.originalUrl.includes("?preview=large")){
-
-			resource_uri = req.originalUrl.substring(0, req.originalUrl.indexOf('?'));
-			res.set('Content-Type', 'text/html');
-			res.send(path.resolve("./preview/preview-large.html"));
-
-		}else if(req.originalUrl.includes("?preview=small")){
-
-			resource_uri = req.originalUrl.substring(0, req.originalUrl.indexOf('?'));
-			res.set('Content-Type', 'text/html');
-			res.send(path.resolve("./preview/preview-small.html"));
-
-		}else if(req.originalUrl.includes("/selection-dialog")){
-			res.set('Content-Type', 'text/html');
-			res.send(path.resolve("./dialog/dialog-select.html"));
-
-		}else if(req.originalUrl.includes("/creation-dialog")){
-			console.log("CREATION");
-			res.set('Content-Type', 'text/html');
-			console.log(path.resolve("./dialog/dialog-create.html"));
-			res.sendFile(path.resolve("./dialog/dialog-create.html")); // Sends the contents of the file, so the HTML
-
-		}else if(req.originalUrl.includes("?")){
-			var base = req.originalUrl.substring(0, req.originalUrl.indexOf('?'));
-			// Need to replace '/' w/ %2F to be in compliance w/ URI
-			console.log("QUERY BASE " + base);
-			
-			var decode = decodeURIComponent(req.originalUrl);
-
-			file_name = query_dictionary[base];
-			console.log(file_name);
-
-			if(file_name === undefined){
-				queryResource(null, base, decode, req, res);
-			}else{
-
-				ldpService.db.get(file_name, "application/ld+json", function(err, ires){
-
-					queryResource(JSON.parse(ires.body), base, decode, req, res);
-
-				});
-
-			}
-			
-			
-		}else{
-			next();
-		}
-
-	});
-
 	resource.put(function(req, res, next) {
 		console.log('OSLC PUT request on:'+req.path);
 		//console.log(req);
+
+		// Would need to get a resource shape associated with the resource
+		// Since this is an update, I don't expect that it is doing so on 
+		// A CreationFactory URI
+		
 		check(req, res, function(result){
-			if(result[0]){
+			if(result.error){
 				res.sendStatus('500');
-			}else if(result[1].length > 0){
+			}else if(result.problems.length > 0){
 				console.log("Not correct format for the inputted resource");
 				res.sendStatus('400');
 			}
@@ -861,225 +1085,6 @@ var oslcRoutes = function(env) {
 		console.log('OSLC DELETE request on:'+req.path);
 		next();
 	});
-
-	function getProperties(file_name){
-
-		ldpService.db.get(file_name, "application/ld+json", function(err, ires){
-
-			var shape = ires.body;
-			var properties = [];
-
-			for(var i = 0; i < shape.length; i++){
-			
-				if(shape[i]["@id"] === oslc.Property){
-					properties.add(shape[i]["name"]);			
-				} 
-			}
-
-			return properties;
-
-		});
-		
-	}
-
-	function verifyShape(shape_info, content, req){
-
-		var shape = shape_info["@graph"];
-		var errors = [];
-		// var base_uri_shape = "https://tools.oasis-open.org/version-control/svn/oslc-core/trunk/specs/shapes/";
-
-		// base_uri_shape+shape+"-shape.ttl#dcterms-title"
-
-		// Every time return false is written that means append problem to a list
-
-		console.log(content);
-		for(var i = 0; i < shape.length; i++){
-			console.log(shape[i]["@id"]);
-			console.log(shape[i]["@type"]);
-
-			var resource_type_found = false;
-
-			// Not checking 'describes' correctly, need to fix
-			/*
-			if(shape[i]["@type"] === "oslc:ResourceShape"){
-				for(var j = 0; j < content.length; j++){
-					console.log(content[j].predicate);
-					if(content[j].predicate === oslc.Type){
-						console.log("True");
-						if(content[j].object === shape[i]["describes"]){
-							resource_type_found = true;
-						}
-					}
-				}
-
-				if(!resource_type_found){
-					errors.push("Describes is " + shape[i]["describes"]);
-				}
-			}
-			*/
-
-			if(shape[i]["@type"] === "oslc:Property"){
-
-				var found = false;
-				for(var k = 0; k < content.length; k++){
-					
-					if(content[k].predicate === oslc.oslc+shape[i]["name"] || content[k].predicate === "http://purl.org/dc/terms/"+shape[i]["name"]){
-						found = true;
-						var expression = new RegExp("(^(http|https)://www.)(\\w+).(\\w+$)");
-
-						if(shape[i]["oslc:readOnly"]){
-							if(shape[i]["oslc:readOnly"] === true && (req.method === "PUT" || req.method === "PATCH")){
-								errors.push(shape[i]["name"] + ": readOnly is " + shape[i]["oslc:readOnly"]);
-							}
-						}
-
-						if(shape[i]["occurs"]){
-
-							if(shape[i]["occurs"] === "oslc:Zero-or-one" || shape[i]["occurs"] === "oslc:Exactly-one"){
-
-								for(var z = k+1; z < content.length; z++){
-									console.log(z + " " + oslc.oslc+shape[i]["name"]);
-									if(content[z].predicate === oslc.oslc+shape[i]["name"]){
-										errors.push(shape[i]["name"] + ": occurs is " + shape[i]["occurs"]);
-										break;
-									}
-								}
-							}
-
-						}
-						
-
-						if(shape[i]["valueType"]){
-
-							for(var z = k; z < content.length; z++){
-
-								if(content[z].predicate === oslc.oslc+shape[i]["name"]){
-									
-									if((!shape[i]["valueType"].includes(typeof content[z].object)) && (!expression.test(content[z].object) && shape[i]["valueType"] === oslc.Resource) && (!expression.test(content[z].object) && shape[i]["valueType"] === oslc.LocalResource)){
-										errors.push(shape[i]["name"] + ": valueType is " + shape[i]["valueType"]);
-									}
-								}
-							}
-						}
-
-						if(shape[i]["maxSize"]){
-
-							for(var z = k+1; z < content.length; z++){
-
-								if(content[z].predicate === oslc.oslc+shape[i]["name"]){
-									
-									if(typeof content[z].object === 'string'){
-										if(expression.test(content[z].object)){
-											continue;
-										}else if(content[z].object.length > shape[i]["maxSize"]){
-											errors.push(shape[i]["name"] + ": maxSize is " + shape[i]["maxSize"]);
-										}
-										
-									}else{
-										if(content[z].object > shape[i]["maxSize"]){
-											errors.push(shape[i]["name"] + ": maxSize is " + shape[i]["maxSize"]);
-										}
-									}
-
-								}
-							}
-						}
-
-						if(shape[i]["representation"]){
-
-							for(var z = k; z < content.length; z++){
-
-								if(content[z].predicate === oslc.oslc+shape[i]["name"]){
-									if(content[z].object.includes("_b") && shape[i]["representation"] === oslc.Reference){
-										errors.push(shape[i]["name"] + ": representation is " + shape[i]["representation"]);
-									}else if(!expression.test(content[z].object) && shape[i]["representation"] === oslc.Reference){
-										errors.push(shape[i]["name"] + ": representation is " + shape[i]["representation"]);
-									}else if(content[z].object.includes("_b") && shape[i]["representation"] === oslc.Inline){
-										var blank_node_triple = getBlankTripleType(content, content[z].object);
-
-										if(blank_node_triple.object !== oslc.oslc+shape[i]["range"]){
-											errors.push(shape[i]["name"] + ": range is" + shape[i]["range"]);
-										}
-									}
-								}
-							}
-						}
-
-					}
-
-				}
-				
-
-				if(!found){
-					if(shape[i]["occurs"] === "oslc:Exactly-one" || shape[i]["occurs"] === "oslc:One-or-many"){
-						errors.push(shape[i]["name"] + ": occurs is " + shape[i]["occurs"]);
-					}
-				}
-
-				
-			}
-
-		}
-
-		return errors;
-
-	}
-
-	function check(req, res, shape_to_get, callback){
-		var content = {};
-		content.rawBody = JSON.stringify(req.body);
-		
-		var index = 0;
-
-		var parse, serialize;
-
-		if(env.contentType === 'JSON'){
-			parse = json.parse;
-		}else{
-			parse = turtle.parse;
-		}
-
-		console.log(req.body);
-		console.log(content.rawBody);
-
-		parse(content, '', function(err, triples){
-			
-			if(err){
-				console.log(err.stackCode);
-				callback([err, false]);
-			}
-
-			var errors_to_report = new Array();
-
-			//var file = JSON.parse(fs.readFileSync("../oslc-service/shape-files/"+req.originalUrl+".json", 'utf8'));
-			
-			ldpService.db.get(shape_to_get, "application/ld+json", function(err, ires){
-
-				preProcessVerifyShape(JSON.parse(ires.body), triples, req, callback);
-
-			});
-			
-
-		});
-
-	}
-
-	function preProcessVerifyShape(file, triples, req, callback){
-
-		errors_to_report = verifyShape(file, triples, req);
-		var results = {};
-		console.log("Errors: " + errors_to_report + " " + errors_to_report.length);
-		if(errors_to_report.length > 0){
-			results.error = null;
-			results.problems = errors_to_report;
-			callback(results);
-			return;
-		}
-
-		results.error = null;
-		results.problems = [];
-		callback(results);
-	}
 
 	// generate an ETag for a response using an MD5 hash
 	// note: insert any calculated triples before calling getETag()
