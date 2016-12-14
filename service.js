@@ -573,55 +573,61 @@ var oslcRoutes = function(env) {
 
 			}
 
-			/*
+			
 			// Attempting to check if the following string is a URI when looking at oslc.prefix
-			if((query.charAt(i) === '<' || query.charAt(i) === '>') && oslc_node.left.val === "oslc.where"){
+			if(query.charAt(i) === '<' || query.charAt(i) === '>'){
 
-				var val_one = query.substring(index, i);
+				
+				if(query.charAt(i+1) === '"' || query.charAt(i+2) === '"'){
 
-				// if(!validResource(shape, val_one)){
-				//		res.sendStatus(400);
-				//	}
+						var val_one = query.substring(index, i);
 
-					index = i;
+					// if(!validResource(shape, val_one)){
+					//		res.sendStatus(400);
+					//	}
 
-					while(query.charAt(index) !== '&' && query.charAt(index) !== ' ' && query.charAt(index) !== ',' && index < query.length){
-						index++;
-					}
+						index = i;
 
-					var val_two;
-					if(query.charAt(i+1) === '='){
-						val_two = query.substring(i+2, index);
-					}else{
-						val_two = query.substring(i+1, index);
-					}
-					
-					console.log("VAL TWO " + val_two);
-					var tmp;
-
-					if(query.charAt(i+1) === '=' && (query.charAt(i) === '>' || query.charAt(i) === '<')){
-						tmp = new Node(query.substring(i, i+2), new Node(val_one, null, null), new Node(val_two, null, null));
-					}else{
-						tmp = new Node(query.charAt(i), new Node(val_one, null, null), new Node(val_two, null, null));
-					}
-					
-
-					if(query.charAt(i+val_two.length+1) === ' '){
-						if(query.substring(i+val_two.length+2, i+val_two.length+5) === "and"){
-							
-							and_node = new Node("and", tmp, null);
-							node.right = and_node;
-							i += (val_two.length+5);
-
-							node = node.right;
+						while(query.charAt(index) !== '&' && query.charAt(index) !== ' ' && query.charAt(index) !== ',' && index < query.length){
+							index++;
 						}
-					}else{
-						node.right = tmp;
-					}
+
+						var val_two;
+						if(query.charAt(i+1) === '='){
+							val_two = query.substring(i+2, index);
+						}else{
+							val_two = query.substring(i+1, index);
+						}
+						
+						console.log("VAL TWO " + val_two);
+						var tmp;
+
+						if(query.charAt(i+1) === '=' && (query.charAt(i) === '>' || query.charAt(i) === '<')){
+							tmp = new Node(query.substring(i, i+2), new Node(val_one, null, null), new Node(val_two, null, null));
+						}else{
+							tmp = new Node(query.charAt(i), new Node(val_one, null, null), new Node(val_two, null, null));
+						}
+						
+
+						if(query.charAt(i+val_two.length+1) === ' '){
+							if(query.substring(i+val_two.length+2, i+val_two.length+5) === "and"){
+								
+								and_node = new Node("and", tmp, null);
+								node.right = and_node;
+								i += (val_two.length+5);
+
+								node = node.right;
+							}
+						}else{
+							node.right = tmp;
+						}
+	
+				}
+								
 
 			} 
 
-			*/
+			
 
 			if(query.charAt(i) === '&'){
 
@@ -1066,7 +1072,7 @@ var oslcRoutes = function(env) {
 		// Would need to get a resource shape associated with the resource
 		// Since this is an update, I don't expect that it is doing so on 
 		// A CreationFactory URI
-		
+
 		check(req, res, function(result){
 			if(result.error){
 				res.sendStatus('500');
