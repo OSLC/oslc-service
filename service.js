@@ -48,7 +48,7 @@ var oslcRoutes = function(env) {
 	var json = require('./jsonld.js');
 	var turtle = require('./turtle.js');
 	var crypto = require('crypto'); // for MD5 (ETags)
-	var ldpService = require('ldp-service-jena'); // OSLC is built on LDP. Uses the service that incorporates Apache Jena as the DB
+	var ldpService = require('ldp-service'); // OSLC is built on LDP. Uses the service that incorporates Apache Jena as the DB
 
 	var creation_dictionary = {}; // Stores the ResourceShapes associated with the Creation URI's for CreationFactories
 	var query_dictionary = {};	  // Stores the ResourceShapes associated with the Query URI's for QueryCapabilities
