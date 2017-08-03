@@ -48,13 +48,13 @@ var oslcRoutes = function(env) {
 	var json = require('./jsonld.js');
 	var turtle = require('./turtle.js');
 	var crypto = require('crypto'); // for MD5 (ETags)
-	var ldpService = require('../ldp-service-jena'); // OSLC is built on LDP. Uses the service that incorporates Apache Jena as the DB
+	var ldpService = require('ldp-service-jena'); // OSLC is built on LDP. Uses the service that incorporates Apache Jena as the DB
 
 	var creation_dictionary = {}; // Stores the ResourceShapes associated with the Creation URI's for CreationFactories
 	var query_dictionary = {};	  // Stores the ResourceShapes associated with the Query URI's for QueryCapabilities
 
 	var link = {};
-	
+
 	var subApp = express();
 	// subApp.use(rawBody);
 	// anything those services don't handle will be passed to this service next
@@ -83,9 +83,9 @@ var oslcRoutes = function(env) {
 
 					// also include implementation constraints
 					res.links(links);
-					
+
 				});
-		*/	
+		*/
 	});
 
 	subApp.get('/properties', function(req, res, next){
@@ -102,16 +102,16 @@ var oslcRoutes = function(env) {
 			var properties = [];
 
 			for(var i = 0; i < shape.length; i++){
-			
+
 				if(shape[i]["@id"] === oslc.Property){
-					properties.add(shape[i]["name"]);			
-				} 
+					properties.add(shape[i]["name"]);
+				}
 			}
 
 			return properties;
 
 		});
-		
+
 	}
 
 	resource.options(function(req, res, next) {
@@ -124,12 +124,12 @@ var oslcRoutes = function(env) {
 		next();
 	});
 
-	
+
 	resource.post(function(req, res, next) {
 		console.log('OSLC POST request on:'+req.path);
 
 		var shape_to_get = creation_dictionary[req.originalUrl];
-		
+
 		console.log(JSON.stringify(req.body));
 
 		// Not right... should have a shape that corresponds with a compact resource
@@ -157,10 +157,10 @@ var oslcRoutes = function(env) {
 				console.log("Not correct format for the inputted resource");
 				res.sendStatus('400');
 			}
-			// console.log("EXECUTED9 " + next.stack);				
+			// console.log("EXECUTED9 " + next.stack);
 
 			next();
-					
+
 		});
 
 	});
@@ -168,7 +168,7 @@ var oslcRoutes = function(env) {
 	function check(req, res, shape_to_get, callback){
 		var content = {};
 		content.rawBody = JSON.stringify(req.body);
-		
+
 		var index = 0;
 
 		var parse, serialize;
@@ -183,7 +183,7 @@ var oslcRoutes = function(env) {
 		console.log(content.rawBody);
 
 		parse(content, '', function(err, triples){
-			
+
 			if(err){
 				console.log(err.stackCode);
 				callback([err, false]);
@@ -192,13 +192,13 @@ var oslcRoutes = function(env) {
 			var errors_to_report = new Array();
 
 			//var file = JSON.parse(fs.readFileSync("../oslc-service/shape-files/"+req.originalUrl+".json", 'utf8'));
-			
+
 			ldpService.db.get(shape_to_get, "application/ld+json", function(err, ires){
 
 				preProcessVerifyShape(JSON.parse(ires.body), triples, req, callback);
 
 			});
-			
+
 
 		});
 
@@ -261,7 +261,7 @@ var oslcRoutes = function(env) {
 
 				var found = false;
 				for(var k = 0; k < content.length; k++){
-					
+
 					if(content[k].predicate === oslc.oslc+shape[i]["name"] || content[k].predicate === "http://purl.org/dc/terms/"+shape[i]["name"]){
 						found = true;
 						var expression = new RegExp("(^(http|https)://www.)(\\w+).(\\w+$)");
@@ -286,14 +286,14 @@ var oslcRoutes = function(env) {
 							}
 
 						}
-						
+
 
 						if(shape[i]["valueType"]){
 
 							for(var z = k; z < content.length; z++){
 
 								if(content[z].predicate === oslc.oslc+shape[i]["name"]){
-									
+
 									if((!shape[i]["valueType"].includes(typeof content[z].object)) && (!expression.test(content[z].object) && shape[i]["valueType"] === oslc.Resource) && (!expression.test(content[z].object) && shape[i]["valueType"] === oslc.LocalResource)){
 										errors.push(shape[i]["name"] + ": valueType is " + shape[i]["valueType"]);
 									}
@@ -306,14 +306,14 @@ var oslcRoutes = function(env) {
 							for(var z = k+1; z < content.length; z++){
 
 								if(content[z].predicate === oslc.oslc+shape[i]["name"]){
-									
+
 									if(typeof content[z].object === 'string'){
 										if(expression.test(content[z].object)){
 											continue;
 										}else if(content[z].object.length > shape[i]["maxSize"]){
 											errors.push(shape[i]["name"] + ": maxSize is " + shape[i]["maxSize"]);
 										}
-										
+
 									}else{
 										if(content[z].object > shape[i]["maxSize"]){
 											errors.push(shape[i]["name"] + ": maxSize is " + shape[i]["maxSize"]);
@@ -347,7 +347,7 @@ var oslcRoutes = function(env) {
 					}
 
 				}
-				
+
 
 				if(!found){
 					if(shape[i]["occurs"] === "oslc:Exactly-one" || shape[i]["occurs"] === "oslc:One-or-many"){
@@ -355,7 +355,7 @@ var oslcRoutes = function(env) {
 					}
 				}
 
-				
+
 			}
 
 		}
@@ -444,7 +444,7 @@ var oslcRoutes = function(env) {
 			var base = req.originalUrl.substring(0, req.originalUrl.indexOf('?'));
 			// Need to replace '/' w/ %2F to be in compliance w/ URI
 			console.log("QUERY BASE " + base);
-			
+
 			var decode = decodeURIComponent(req.originalUrl);
 
 			file_name = query_dictionary[base];
@@ -461,8 +461,8 @@ var oslcRoutes = function(env) {
 				});
 
 			}
-			
-			
+
+
 		}else{
 			next();
 		}
@@ -492,7 +492,7 @@ var oslcRoutes = function(env) {
 
 		http://example.com/bugs?oslc.where=cm:severity="high" and dcterms:created>"2010-04-01"
 		http://example.com/bugs?oslc.select=dcterms:created,dcterms:creator{foaf:familyName}&oslc.where=cm:severity="high"
-					
+
 
 	*/
 
@@ -501,7 +501,7 @@ var oslcRoutes = function(env) {
 		console.log("QUERY");
 
 		class Node {
-	
+
 			constructor(val, left, right){
 				this.val = val;
 				this.left = left;
@@ -509,7 +509,7 @@ var oslcRoutes = function(env) {
 			}
 
 		}
-				
+
 		var query = decode.substring(decode.indexOf('?')+1, decode.length);
 		var node = null;
 		var oslc_node = null
@@ -519,7 +519,7 @@ var oslcRoutes = function(env) {
 		var index = 0;
 
 		for(var i = 0; i < query.length; i++){
-				
+
 			// <, > not implemented due to issues with PREFIX
 			if(query.charAt(i) === '='){
 
@@ -533,16 +533,16 @@ var oslcRoutes = function(env) {
 					}else{
 						node = new Node(query.charAt(i), new Node(val_one, null, null), null);
 					}
-						
+
 					oslc_node = node;
 					console.log(oslc_node);
 					index = i+1;
-						
+
 				}else{
 
 					/* if(!validResource(shape, val_one)){
 						res.sendStatus(400);
-					}*/	
+					}*/
 
 					index = i;
 
@@ -551,14 +551,14 @@ var oslcRoutes = function(env) {
 					}
 
 					var val_two = query.substring(i+1, index);
-					
-					
+
+
 					console.log("VAL TWO " + val_two);
 					var tmp = new Node(query.charAt(i), new Node(val_one, null, null), new Node(val_two, null, null));
 
 					if(query.charAt(i+val_two.length+1) === ' '){
 						if(query.substring(i+val_two.length+2, i+val_two.length+5) === "and"){
-							
+
 							and_node = new Node("and", tmp, null);
 							node.right = and_node;
 							i += (val_two.length+5);
@@ -567,17 +567,17 @@ var oslcRoutes = function(env) {
 						}
 					}else{
 						node.right = tmp;
-					}			
+					}
 
-				}			
+				}
 
 			}
 
-			
+
 			// Attempting to check if the following string is a URI when looking at oslc.prefix
 			if(query.charAt(i) === '<' || query.charAt(i) === '>'){
 
-				
+
 				if(query.charAt(i+1) === '"' || query.charAt(i+2) === '"'){
 
 						var val_one = query.substring(index, i);
@@ -598,7 +598,7 @@ var oslcRoutes = function(env) {
 						}else{
 							val_two = query.substring(i+1, index);
 						}
-						
+
 						console.log("VAL TWO " + val_two);
 						var tmp;
 
@@ -607,11 +607,11 @@ var oslcRoutes = function(env) {
 						}else{
 							tmp = new Node(query.charAt(i), new Node(val_one, null, null), new Node(val_two, null, null));
 						}
-						
+
 
 						if(query.charAt(i+val_two.length+1) === ' '){
 							if(query.substring(i+val_two.length+2, i+val_two.length+5) === "and"){
-								
+
 								and_node = new Node("and", tmp, null);
 								node.right = and_node;
 								i += (val_two.length+5);
@@ -621,20 +621,20 @@ var oslcRoutes = function(env) {
 						}else{
 							node.right = tmp;
 						}
-	
+
 				}
-								
 
-			} 
 
-			
+			}
+
+
 
 			if(query.charAt(i) === '&'){
 
 				if(oslc_node.left.val === "oslc.select"){
 					node.right = new Node(query.substring(index, i), null, null);
 				}
-					
+
 				if(amp_node === null){
 					left_node = oslc_node;
 					console.log("LEFT NODE");
@@ -651,7 +651,7 @@ var oslcRoutes = function(env) {
 				// Unfinished. Does not take into account ',' within a {}
 				/*
 					if(query.charAt(i) === '{'){
-			
+
 						open_paran_node = new Node('{', new Node(query.substring(index, i), null, null), new Node('}', null, null));
 						curl_nodes.push(open_paran_node);
 						pre_curl_node = node;
@@ -660,7 +660,7 @@ var oslcRoutes = function(env) {
 					}
 
 					if(query.charAt(i) === '}'){
-							
+
 						ret_node = curl_nodes.pop();
 
 						if(curl_nodes.length === 0){
@@ -676,7 +676,7 @@ var oslcRoutes = function(env) {
 
 
 			if(query.charAt(i) === ','){
-	
+
 
 				var val = query.substring(index, query.charAt(i));
 				comma_node = new Node(',', val, null);
@@ -687,7 +687,7 @@ var oslcRoutes = function(env) {
 			}
 
 		}
-	
+
 		if(amp_node){
 			console.log("NODE");
 			console.log(amp_node);
@@ -714,17 +714,17 @@ var oslcRoutes = function(env) {
 			});
 
 		}
-			
 
 
-		// Code below directly translated OSLC Query to SPARQL, defunct 
+
+		// Code below directly translated OSLC Query to SPARQL, defunct
 		// Because it only works with Apache Jena or other DB that supports SPARQL
 
 		/*
-					
+
 
 		if(query.includes("oslc.prefix")){
-		
+
 			index = query.indexOf("oslc.prefix")+"oslc.prefix".length+1;
 
 			for(var i = index; i < query.length && query.charAt(i) !== '&'; i++){
@@ -734,9 +734,9 @@ var oslcRoutes = function(env) {
 					index_follow = i+1;
 					// check if param is valid
 					// http://example.com/bugs?oslc.where=cm:severity="high" and dcterms:created>"2010-04-01"
-							
+
 					while(query.charAt(index_follow) != '&' && index_follow < query.length && query.charAt(index_follow) != ',' && query.charAt(index_follow) != '}'){
-		
+
 						index_follow++;
 
 					}
@@ -750,19 +750,19 @@ var oslcRoutes = function(env) {
 					index = i+1;
 
 
-				}	
+				}
 			}
 
 		}
 
-						
+
 		if(query.includes("oslc.select")){
 			index = query.indexOf("oslc.select")+"oslc.select=".length;
 			var stack = new Array(); // Used to add to WHERE clause if there are nested properties
 
 			var open_curl = 0;
 			var close_curl = 0;
-							
+
 			stack.push("?s");
 			var resource = "";
 			for(var i = index+1; i < query.length && query.charAt(i) !== '&'; i++){
@@ -780,14 +780,14 @@ var oslcRoutes = function(env) {
 					//	return;
 					//}
 					// End check
-									
+
 					// http://localhost:3000/r/tasks?oslc.prefix%3Dcm%3D%3Chttp%3A%2F%2Fqm.example.com%2Fns%3E%2Cdcterms%3D%3Chttp%3A%2F%2Fdcterms.example.com%3E%26oslc.select%3Ddcterms%3Acreated%2Cdcterms%3Acreator%26oslc.where%3Dcm%3Aseverity%3D%22high%22
 
 					// check if param is valid
-					// 
+					//
 					// SELECT ?dcterms:created, ?foaf:familyName WHERE GRAPH ?g {?s cm:severity "high". ?s dcterms:created ?dcterms:created. ?s dcterms:creator ?dcterms:creator. ?dcterms:creator foaf:familyName ?foaf:familyName}
-					// 
-										
+					//
+
 				}
 
 				// Check that # of '{' === # of '}'
@@ -800,7 +800,7 @@ var oslcRoutes = function(env) {
 					resource = query.substring(index, i).replace(':','_');
 					index = i;
 					stack.push("?"+resource);
-									
+
 				}
 
 				if(query.charAt(i) === '}'){
@@ -811,7 +811,7 @@ var oslcRoutes = function(env) {
 						sparql_query_where += stack[stack.length-1] + " " + resource + " ?" + resource.replace(':','_');
 						stack.pop();
 						index = i;
-										
+
 					}
 				}
 
@@ -825,7 +825,7 @@ var oslcRoutes = function(env) {
 		}
 
 		if(query.includes("oslc.where")){
-							
+
 			var index = query.indexOf("oslc.where")+"oslc.where=".length;
 			var index_follow;
 			var filters = [];
@@ -847,7 +847,7 @@ var oslcRoutes = function(env) {
 					// oslc.prefix%3Dcm%3D%3Chttp%3A%2F%2Fqm.example.com%2Fns%3E%2Cdcterms%3D%3Chttp%3A%2F%2Fdcterms.example.com%3E%26oslc.select%3Ddcterms%3Acreated%2Cdcterms%3Acreator%26oslc.where%3Dcm%3Aseverity%3D%22high%22%26oslc.orderBy%3D-dcterms%3Acreated
 
 					while(query.charAt(index_follow) != '&' && index_follow < query.length && query.charAt(index_follow) != ' ' && query.charAt(index_follow) != '}'){
-		
+
 						index_follow++;
 
 					}
@@ -856,7 +856,7 @@ var oslcRoutes = function(env) {
 
 					if(!sparql_query_where.includes("?s " + resource + " " + query.substring(i+1, index_follow) + " . ")){
 						sparql_query_where+="?s " + resource + " " + query.substring(i+1, index_follow) + " . ";
-										
+
 					}
 
 					/*
@@ -866,10 +866,10 @@ var oslcRoutes = function(env) {
 						if(!sparql_query_where.includes("?s " + resource + " " + query.substring(i+1, index_follow) + " . ")){
 							sparql_query_where+="?s " + resource + " " + resource.replace(':','_') + " . ";
 						}
-										
+
 						filter.push(resource.replace(':','_')+query.charAt(i)+query.substring(i+1, index_follow));
 
-					
+
 
 					if(query.charAt(index_follow) === '&'){
 						break;
@@ -883,7 +883,7 @@ var oslcRoutes = function(env) {
 					if(query.substring(i+1, i+4) === "and"){
 						i+=5;
 						index = i;
-											
+
 					}
 				}
 
@@ -898,13 +898,13 @@ var oslcRoutes = function(env) {
 					//}else{
 					//	return;
 					//}
-										
+
 				}
 
 
 			}
 
-			
+
 			if(filter.length > 0){
 
 				sparql_query_where+="FILTER "+filter[0];
@@ -914,11 +914,11 @@ var oslcRoutes = function(env) {
 				}
 
 			}
-			
+
 
 			sparql_query_where += "} } ";
 
-							
+
 			}
 
 			if(query.includes("oslc.orderBy")){
@@ -926,7 +926,7 @@ var oslcRoutes = function(env) {
 				console.log("ORDER BY");
 
 				sparql_query_orderBy += "ORDER BY ";
-		
+
 				var index = query.indexOf("oslc.orderBy")+"oslc.orderBy=".length;
 				var index_follow;
 				for(var i = index; i < query.length && query.charAt(i) !== '&'; i++){
@@ -942,12 +942,12 @@ var oslcRoutes = function(env) {
 						i = index;
 
 					}else if(query.charAt(i) === '-'){
-									
+
 						index = i;
 						while(index != ',' && index != '}' && index != '&' && index < query.length){
 							index++;
 						}
-									
+
 						sparql_query_orderBy += "DESC(?" + query.substring(i+1, index).replace(':','_') + ") ";
 						i = index;
 
@@ -972,7 +972,7 @@ var oslcRoutes = function(env) {
 			console.log(encodeURIComponent(sparql_query_prefix + sparql_query_select + sparql_query_where + sparql_query_orderBy));
 
 			var result = function(results){
-				
+
 			}
 
 			ldpService.db.query(encodeURIComponent(sparql_query_prefix + sparql_query_select + sparql_query_where + sparql_query_orderBy), function(err, ires){
@@ -999,7 +999,7 @@ var oslcRoutes = function(env) {
 
 					// [0]["g"]["value"];
 
-					// Figure out a good way to sort the 
+					// Figure out a good way to sort the
 					for(var j = 0; j < info.length; j++){
 						ldpService.get(info[j]["uri"], "application/ld+json", function(err, result){
 							for(var key in result["@graph"][0]){
@@ -1011,7 +1011,7 @@ var oslcRoutes = function(env) {
 									}
 
 								}
-												
+
 							}
 
 							terms[info[j]["uri"]] = count;
@@ -1051,12 +1051,12 @@ var oslcRoutes = function(env) {
 						});
 
 				}
-				
+
 
 			}else{
 
 				res.body = ires.body;
-							
+
 				res.sendStatus(200);
 			}
 
@@ -1070,7 +1070,7 @@ var oslcRoutes = function(env) {
 		//console.log(req);
 
 		// Would need to get a resource shape associated with the resource
-		// Since this is an update, I don't expect that it is doing so on 
+		// Since this is an update, I don't expect that it is doing so on
 		// A CreationFactory URI
 
 		check(req, res, function(result){
@@ -1082,9 +1082,9 @@ var oslcRoutes = function(env) {
 			}
 			console.log("EXECUTED9");
 			next();
-			
+
 		});
-		
+
 	});
 
 	resource.delete(function(req, res, next) {
@@ -1149,7 +1149,7 @@ var oslcRoutes = function(env) {
 			}
 
 			function createRootContainer(env, callback) {
-		
+
 				var file = fs.readFileSync(env.services, 'utf8');
 				var services = JSON.parse(file);
 				console.log(services);
@@ -1179,11 +1179,11 @@ var oslcRoutes = function(env) {
 			var use = (shape_uri.includes("http")) ? http : https;
 
 			use.get(shape_uri, function(response){
-				var data = "";								
+				var data = "";
 				response.on('data', function(chunk){
 					console.log(typeof chunk);
 					data += chunk;
-													
+
 				});
 				response.on('end', function(){
 					console.log(typeof data);
@@ -1199,14 +1199,14 @@ var oslcRoutes = function(env) {
 						}
 					});
 				});
-											
+
 			});
-										
+
 		}catch(err){
 			console.error("Resource does not exist");
 			var results = {};
 			results.error = err;
-			
+
 		}
 
 
@@ -1226,7 +1226,7 @@ var oslcRoutes = function(env) {
 			          if(triples[i].predicate === "http://www.w3.org/1999/02/22-rdf-syntax-ns#type"){
 			          	   console.log("FOUND NODE TYPE: " + triples[i].object);
 			               service_type = triples[i].object;
-			               
+
 			          }
 		          }
 
@@ -1247,7 +1247,7 @@ var oslcRoutes = function(env) {
 			          if(triples[i].object.includes("_:b")){
 			          	   console.log("FOUND NODE: " + triples[i].object);
 			               obj = findBlankNodes(triples[i].object, uri, triples, serialize, first_time, service_num, callback);
-			               
+
 			          }else if(triples[i].object.includes("ex:")){ 	// implies that there's an external file, needs to be checked
 			          		var file = fs.readFileSync(triples[i].object);
 							obj = findBlankNodes(triples[i].object, uri, triples, serialize, first_time, service_num, callback);
@@ -1257,7 +1257,7 @@ var oslcRoutes = function(env) {
 								}
 								findBlankNodes(obj, uri, ex_triples, serialize, true, service_num, callback);
 							});
-							
+
 			          }else{
 			               obj = triples[i].object;
 			          }
@@ -1282,7 +1282,7 @@ var oslcRoutes = function(env) {
 		       	var json_result = JSON.parse(result);
 
 		        console.log("RESULT");
-		        console.log(json_result); 
+		        console.log(json_result);
 
 		        if(json_result['@type'][0] === oslc.CreationFactory){
 		        	if(json_result[oslc.resourceShape]['@id'].includes(".ttl")){
@@ -1292,10 +1292,10 @@ var oslcRoutes = function(env) {
 			        	var creation_uri = json_result[oslc.creation]['@id'];
 			        	console.log(result);
 			        	creation_dictionary[creation_uri] = json_result[oslc.resourceShape]['@id'];
-			        	link[uri]["type"] = json_result[oslc.resourceShape]['@id'];	
+			        	link[uri]["type"] = json_result[oslc.resourceShape]['@id'];
 
 		        	}
-		        	
+
 		        }
 
 		        if(json_result[oslc.selectionDialog]){
@@ -1318,15 +1318,15 @@ var oslcRoutes = function(env) {
 			        	link[uri]["type"] = json_result[oslc.resourceShape]['@id'];
 
 		        	}
-		        	
-		        	
+
+
 		        }
 
 		        if(json_result['@type'][0] === oslc.Dialog){
 		        	if(json_result[oslc.resourceShape]){
 		        		link[uri]["type"] = json_result[oslc.resourceShape]['@id'];
 		        	}
-		        	
+
 		        }
 
 		        ldpService.db.put(uri, result, 'application/ld+json', function(err){
@@ -1336,7 +1336,7 @@ var oslcRoutes = function(env) {
 		           	}
 
 		           	return uri;
-		        });        
+		        });
 
 		     });
 		 });
@@ -1370,7 +1370,7 @@ var oslcRoutes = function(env) {
 				console.log(name);
 				container = addPath(container, name + "-" + service_num[name]);
 
-				
+
 			}
 			first_time = false;
 
@@ -1413,14 +1413,14 @@ var oslcRoutes = function(env) {
 						callback(null, candidate);
 					}
 				});
-				
+
 			} else {
-*/	
+*/
 				//console.log("CANDIDATE: " + container);
 				return uniqueURI(container, service_type, first_time, mark, callback);
 			//}
 		}
-	     
+
 	}
 
 		/*
@@ -1456,7 +1456,7 @@ var oslcRoutes = function(env) {
 }
 
 // creates a root container on first run
-	
+
 
 /*
 // append 'path' to the end of a uri
