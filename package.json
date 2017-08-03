@@ -10,7 +10,7 @@
     "express": "~4.13.4",
     "n3": "~0.4.5",
     "jsonld": "~0.4.2",
-    "ldp-service-jena": "OSLC/ldp-service-jena#f-use-rdflib-fork"
+    "ldp-service-jena": "OSLC/ldp-service-jena#2c12e4da20f9a872a9f04df0e18ac063e60ad455"
   },
   "engines": {
     "node": "~5.1.0"
