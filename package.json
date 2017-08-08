@@ -9,13 +9,14 @@
   "dependencies": {
     "express": "~4.13.4",
     "n3": "~0.4.5",
-    "jsonld": "~0.4.2"
+    "jsonld": "~0.4.2",
+    "ldp-service": "https://github.com/OSLC/ldp-service-jena.git#f-use-rdflib-fork"
   },
   "engines": {
     "node": "~5.1.0"
   },
   "repository": {
     "type": "git",
-    "url": "https://github.com/OSLC/ldp-server.git"
+    "url": "https://github.com/OSLC/oslc-service.git"
   }
 }
