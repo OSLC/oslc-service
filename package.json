@@ -15,6 +15,6 @@
   },
   "repository": {
     "type": "git",
-    "url": "https://github.com/OSLC/ldp-server.git"
+    "url": "https://github.com/OSLC/oslc-service.git"
   }
 }

@@ -1,5 +1,8 @@
 # oslc-service
 
+[![Discourse status](https://img.shields.io/discourse/https/meta.discourse.org/status.svg)](https://forum.open-services.net/)
+[![Gitter](https://img.shields.io/gitter/room/nwjs/nw.js.svg)](https://gitter.im/OSLC/chat)
+
 A Node.js module providing Express middleware to create an [OSLC 3.0](https://tools.oasis-open.org/version-control/svn/oslc-core/trunk/specs/oslc-core.html) server. The service uses the ldp-service Express middleware module which provides a database of the user's choosing for persistence, jsonld.js for JSON-LD support, and a few other JavaScript libraries.  A sample app using the OSLC middleware service is running at [http://oslc-browser.mybluemix.net](http://oslc-browser.mybluemix.net).
 
 oslc-service supports any OSLC Domain by including the domain vocabulary URIs at open-services.net/ns in the config.json file.

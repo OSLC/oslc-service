@@ -1,8 +1,6 @@
-<<<<<<< HEAD
 launchConfigurations/
 node_modules/
 
-=======
 # Logs
 logs
 *.log
@@ -32,5 +30,4 @@ build/Release
 node_modules
 
 # Debug log from npm
->>>>>>> origin/master
 npm-debug.log
