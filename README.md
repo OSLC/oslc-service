@@ -2,6 +2,7 @@
 
 [![Discourse status](https://img.shields.io/discourse/https/meta.discourse.org/status.svg)](https://forum.open-services.net/)
 [![Gitter](https://img.shields.io/gitter/room/nwjs/nw.js.svg)](https://gitter.im/OSLC/chat)
+[![FOSSA Status](https://app.fossa.io/api/projects/git%2Bgithub.com%2FOSLC%2Foslc-service.svg?type=shield)](https://app.fossa.io/projects/git%2Bgithub.com%2FOSLC%2Foslc-service?ref=badge_shield)
 
 A Node.js module providing Express middleware to create an [OSLC 3.0](https://tools.oasis-open.org/version-control/svn/oslc-core/trunk/specs/oslc-core.html) server. The service uses the ldp-service Express middleware module which provides a database of the user's choosing for persistence, jsonld.js for JSON-LD support, and a few other JavaScript libraries.  A sample app using the OSLC middleware service is running at [http://oslc-browser.mybluemix.net](http://oslc-browser.mybluemix.net).
 
@@ -73,3 +74,6 @@ distributed under the License is distributed on an "AS IS" BASIS,
 WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 See the License for the specific language governing permissions and
 limitations under the License.
+
+
+[![FOSSA Status](https://app.fossa.io/api/projects/git%2Bgithub.com%2FOSLC%2Foslc-service.svg?type=large)](https://app.fossa.io/projects/git%2Bgithub.com%2FOSLC%2Foslc-service?ref=badge_large)
