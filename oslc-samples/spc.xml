@@ -1,0 +1,52 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<rdf:RDF 
+    xmlns:dcterms="http://purl.org/dc/terms/" 
+    xmlns:jfs_proc="http://jazz.net/xmlns/prod/jazz/process/1.0/" 
+    xmlns:oslc="http://open-services.net/ns/core#" 
+    xmlns:rdf="http://www.w3.org/1999/02/22-rdf-syntax-ns#">
+    
+    <oslc:ServiceProviderCatalog rdf:about="https://oslclnx2.rtp.raleigh.ibm.com:9443/ccm/oslc/workitems/catalog">
+        <dcterms:title rdf:parseType="Literal">Project Areas</dcterms:title>
+        <dcterms:publisher>
+            <oslc:Publisher>
+                <dcterms:title rdf:parseType="Literal">IBM Rational Team Concert Work Items</dcterms:title>
+                <dcterms:identifier>com.ibm.team.workitem</dcterms:identifier>
+                <oslc:icon rdf:resource="https://oslclnx2.rtp.raleigh.ibm.com:9443/ccm/web/com.ibm.team.rtc.web/ui/graphics/UICustomizations/RationalTeamConcert.ico"/>
+            </oslc:Publisher>
+        </dcterms:publisher>
+        <oslc:domain rdf:resource="http://open-services.net/ns/cm#"/>
+        <oslc:serviceProvider>
+
+            <oslc:ServiceProvider rdf:about="https://oslclnx2.rtp.raleigh.ibm.com:9443/ccm/oslc/contexts/_pMhMgPsWEeSnQvDHoYok5w/workitems/services.xml">
+                <dcterms:title rdf:parseType="Literal"><div><p>JKE Banking (Change Management)</p><p>Another paragraph</p></div><p>And another paragraph</p></dcterms:title>
+                <oslc:details rdf:resource="https://oslclnx2.rtp.raleigh.ibm.com:9443/ccm/process/project-areas/_pMhMgPsWEeSnQvDHoYok5w"/>
+                <jfs_proc:supportLinkDiscoveryViaLinkIndexProvider rdf:parseType="Literal">false</jfs_proc:supportLinkDiscoveryViaLinkIndexProvider>
+                <jfs_proc:supportContributionsToLinkIndexProvider rdf:parseType="Literal">true</jfs_proc:supportContributionsToLinkIndexProvider>
+                <jfs_proc:globalConfigurationAware rdf:parseType="Literal">compatible</jfs_proc:globalConfigurationAware>
+                <jfs_proc:consumerRegistry rdf:resource="https://oslclnx2.rtp.raleigh.ibm.com:9443/ccm/process/project-areas/_pMhMgPsWEeSnQvDHoYok5w/links"/>
+            </oslc:ServiceProvider>
+        </oslc:serviceProvider>
+
+        <oslc:serviceProvider>
+            <oslc:ServiceProvider rdf:about="https://oslclnx2.rtp.raleigh.ibm.com:9443/ccm/oslc/contexts/_SSJ_4P8DEeSQtPcnT3mjXQ/workitems/services.xml">
+                <dcterms:title rdf:parseType="Literal">RELM Basic (Change Management)</dcterms:title>
+                <oslc:details rdf:resource="https://oslclnx2.rtp.raleigh.ibm.com:9443/ccm/process/project-areas/_SSJ_4P8DEeSQtPcnT3mjXQ"/>
+                <jfs_proc:supportLinkDiscoveryViaLinkIndexProvider rdf:parseType="Literal">false</jfs_proc:supportLinkDiscoveryViaLinkIndexProvider>
+                <jfs_proc:supportContributionsToLinkIndexProvider rdf:parseType="Literal">true</jfs_proc:supportContributionsToLinkIndexProvider>
+                <jfs_proc:globalConfigurationAware rdf:parseType="Literal">compatible</jfs_proc:globalConfigurationAware>
+                <jfs_proc:consumerRegistry rdf:resource="https://oslclnx2.rtp.raleigh.ibm.com:9443/ccm/process/project-areas/_SSJ_4P8DEeSQtPcnT3mjXQ/links"/>
+            </oslc:ServiceProvider>
+        </oslc:serviceProvider>
+
+        <oslc:serviceProvider>
+            <oslc:ServiceProvider rdf:about="https://oslclnx2.rtp.raleigh.ibm.com:9443/ccm/oslc/contexts/_XTHEEBjoEeWcNJtNeNtMmg/workitems/services.xml">
+                <dcterms:title rdf:parseType="Literal">JUnit Project</dcterms:title>
+                <oslc:details rdf:resource="https://oslclnx2.rtp.raleigh.ibm.com:9443/ccm/process/project-areas/_XTHEEBjoEeWcNJtNeNtMmg"/>
+                <jfs_proc:supportLinkDiscoveryViaLinkIndexProvider rdf:parseType="Literal">false</jfs_proc:supportLinkDiscoveryViaLinkIndexProvider>
+                <jfs_proc:supportContributionsToLinkIndexProvider rdf:parseType="Literal">true</jfs_proc:supportContributionsToLinkIndexProvider>
+                <jfs_proc:globalConfigurationAware rdf:parseType="Literal">compatible</jfs_proc:globalConfigurationAware>
+                <jfs_proc:consumerRegistry rdf:resource="https://oslclnx2.rtp.raleigh.ibm.com:9443/ccm/process/project-areas/_XTHEEBjoEeWcNJtNeNtMmg/links"/>
+            </oslc:ServiceProvider>
+        </oslc:serviceProvider>
+    </oslc:ServiceProviderCatalog>
+</rdf:RDF>

@@ -1,0 +1,326 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<rdf:RDF xmlns:calm="http://jazz.net/xmlns/prod/jazz/calm/1.0/" xmlns:dcterms="http://purl.org/dc/terms/" xmlns:jfs_proc="http://jazz.net/xmlns/prod/jazz/process/1.0/" xmlns:oslc="http://open-services.net/ns/core#" xmlns:oslc_cmx="http://open-services.net/ns/cm-x#" xmlns:rdf="http://www.w3.org/1999/02/22-rdf-syntax-ns#" xml:base="https://oslclnx2.rtp.raleigh.ibm.com:9443/ccm/oslc/contexts/_pMhMgPsWEeSnQvDHoYok5w/workitems/services.xml">
+  <oslc:ServiceProvider rdf:about="https://oslclnx2.rtp.raleigh.ibm.com:9443/ccm/oslc/contexts/_pMhMgPsWEeSnQvDHoYok5w/workitems/services.xml">
+    <dcterms:title rdf:parseType="Literal">JKE Banking (Change Management)</dcterms:title>
+    <oslc:details rdf:resource="https://oslclnx2.rtp.raleigh.ibm.com:9443/ccm/process/project-areas/_pMhMgPsWEeSnQvDHoYok5w"/>
+    <jfs_proc:supportLinkDiscoveryViaLinkIndexProvider rdf:parseType="Literal">false</jfs_proc:supportLinkDiscoveryViaLinkIndexProvider>
+    <jfs_proc:supportContributionsToLinkIndexProvider rdf:parseType="Literal">true</jfs_proc:supportContributionsToLinkIndexProvider>
+    <jfs_proc:globalConfigurationAware rdf:parseType="Literal">compatible</jfs_proc:globalConfigurationAware>
+    <jfs_proc:consumerRegistry rdf:resource="https://oslclnx2.rtp.raleigh.ibm.com:9443/ccm/process/project-areas/_pMhMgPsWEeSnQvDHoYok5w/links"/>
+    <dcterms:publisher>
+      <oslc:Publisher>
+        <dcterms:title rdf:parseType="Literal">IBM Rational Team Concert Work Items</dcterms:title>
+        <dcterms:identifier>com.ibm.team.workitem</dcterms:identifier>
+        <oslc:icon rdf:resource="https://oslclnx2.rtp.raleigh.ibm.com:9443/ccm/web/com.ibm.team.rtc.web/ui/graphics/UICustomizations/RationalTeamConcert.ico"/>
+      </oslc:Publisher>
+    </dcterms:publisher>
+    <oslc_cmx:whoami rdf:resource="https://oslclnx2.rtp.raleigh.ibm.com:9443/ccm/oslc/whoami"/>
+
+    <oslc:service>
+      <oslc:Service>
+        <oslc:domain rdf:resource="http://open-services.net/ns/cm#"/>
+        <calm:home>
+          <calm:Home>
+            <dcterms:title rdf:parseType="Literal">Work Items Home</dcterms:title>
+            <calm:webHome rdf:resource="https://oslclnx2.rtp.raleigh.ibm.com:9443/ccm/web/projects/JKE%20Banking%20%28Change%20Management%29#action=com.ibm.team.workitem.viewWelcome"/>
+          </calm:Home>
+        </calm:home>
+        <oslc:creationFactory>
+          <oslc:CreationFactory>
+            <dcterms:title rdf:parseType="Literal">Location for creation of Defect change requests </dcterms:title>
+            <oslc:usage rdf:resource="http://open-services.net/ns/core#default"/>
+            <oslc:usage rdf:resource="http://open-services.net/ns/cm#defect"/>
+            <oslc:resourceType rdf:resource="http://open-services.net/ns/cm#ChangeRequest"/>
+            <oslc:resourceType rdf:resource="https://oslclnx2.rtp.raleigh.ibm.com:9443/ccm/oslc/types/_pMhMgPsWEeSnQvDHoYok5w/defect"/>
+            <oslc:resourceShape rdf:resource="https://oslclnx2.rtp.raleigh.ibm.com:9443/ccm/oslc/context/_pMhMgPsWEeSnQvDHoYok5w/shapes/workitems/defect"/>
+            <oslc:creation rdf:resource="https://oslclnx2.rtp.raleigh.ibm.com:9443/ccm/oslc/contexts/_pMhMgPsWEeSnQvDHoYok5w/workitems/defect"/>
+          </oslc:CreationFactory>
+        </oslc:creationFactory>
+        <oslc:creationFactory>
+          <oslc:CreationFactory>
+            <dcterms:title rdf:parseType="Literal">Location for creation of Task change requests </dcterms:title>
+            <oslc:usage rdf:resource="http://open-services.net/ns/cm#task"/>
+            <oslc:usage rdf:resource="http://open-services.net/ns/cm#requirementsChangeRequest"/>
+            <oslc:resourceType rdf:resource="http://open-services.net/ns/cm#ChangeRequest"/>
+            <oslc:resourceType rdf:resource="https://oslclnx2.rtp.raleigh.ibm.com:9443/ccm/oslc/types/_pMhMgPsWEeSnQvDHoYok5w/task"/>
+            <oslc:resourceShape rdf:resource="https://oslclnx2.rtp.raleigh.ibm.com:9443/ccm/oslc/context/_pMhMgPsWEeSnQvDHoYok5w/shapes/workitems/task"/>
+            <oslc:creation rdf:resource="https://oslclnx2.rtp.raleigh.ibm.com:9443/ccm/oslc/contexts/_pMhMgPsWEeSnQvDHoYok5w/workitems/task"/>
+          </oslc:CreationFactory>
+        </oslc:creationFactory>
+        <oslc:creationFactory>
+          <oslc:CreationFactory>
+            <dcterms:title rdf:parseType="Literal">Location for creation of Story change requests </dcterms:title>
+            <oslc:usage rdf:resource="http://open-services.net/ns/cm#planItem"/>
+            <oslc:resourceType rdf:resource="http://open-services.net/ns/cm#ChangeRequest"/>
+            <oslc:resourceType rdf:resource="https://oslclnx2.rtp.raleigh.ibm.com:9443/ccm/oslc/types/_pMhMgPsWEeSnQvDHoYok5w/com.ibm.team.apt.workItemType.story"/>
+            <oslc:resourceShape rdf:resource="https://oslclnx2.rtp.raleigh.ibm.com:9443/ccm/oslc/context/_pMhMgPsWEeSnQvDHoYok5w/shapes/workitems/com.ibm.team.apt.workItemType.story"/>
+            <oslc:creation rdf:resource="https://oslclnx2.rtp.raleigh.ibm.com:9443/ccm/oslc/contexts/_pMhMgPsWEeSnQvDHoYok5w/workitems/com.ibm.team.apt.workItemType.story"/>
+          </oslc:CreationFactory>
+        </oslc:creationFactory>
+        <oslc:creationFactory>
+          <oslc:CreationFactory>
+            <dcterms:title rdf:parseType="Literal">Location for creation of Epic change requests </dcterms:title>
+            <oslc:usage rdf:resource="http://jazz.net/xmlns/prod/jazz/rtc/cm/1.0/com.ibm.team.apt.workItemType.epic"/>
+            <oslc:resourceType rdf:resource="http://open-services.net/ns/cm#ChangeRequest"/>
+            <oslc:resourceType rdf:resource="https://oslclnx2.rtp.raleigh.ibm.com:9443/ccm/oslc/types/_pMhMgPsWEeSnQvDHoYok5w/com.ibm.team.apt.workItemType.epic"/>
+            <oslc:resourceShape rdf:resource="https://oslclnx2.rtp.raleigh.ibm.com:9443/ccm/oslc/context/_pMhMgPsWEeSnQvDHoYok5w/shapes/workitems/com.ibm.team.apt.workItemType.epic"/>
+            <oslc:creation rdf:resource="https://oslclnx2.rtp.raleigh.ibm.com:9443/ccm/oslc/contexts/_pMhMgPsWEeSnQvDHoYok5w/workitems/com.ibm.team.apt.workItemType.epic"/>
+          </oslc:CreationFactory>
+        </oslc:creationFactory>
+        <oslc:creationFactory>
+          <oslc:CreationFactory>
+            <dcterms:title rdf:parseType="Literal">Location for creation of Track Build Item change requests </dcterms:title>
+            <oslc:usage rdf:resource="http://jazz.net/xmlns/prod/jazz/rtc/cm/1.0/com.ibm.team.workItemType.buildtrackingitem"/>
+            <oslc:resourceType rdf:resource="http://open-services.net/ns/cm#ChangeRequest"/>
+            <oslc:resourceType rdf:resource="https://oslclnx2.rtp.raleigh.ibm.com:9443/ccm/oslc/types/_pMhMgPsWEeSnQvDHoYok5w/com.ibm.team.workItemType.buildtrackingitem"/>
+            <oslc:resourceShape rdf:resource="https://oslclnx2.rtp.raleigh.ibm.com:9443/ccm/oslc/context/_pMhMgPsWEeSnQvDHoYok5w/shapes/workitems/com.ibm.team.workItemType.buildtrackingitem"/>
+            <oslc:creation rdf:resource="https://oslclnx2.rtp.raleigh.ibm.com:9443/ccm/oslc/contexts/_pMhMgPsWEeSnQvDHoYok5w/workitems/com.ibm.team.workItemType.buildtrackingitem"/>
+          </oslc:CreationFactory>
+        </oslc:creationFactory>
+        <oslc:creationFactory>
+          <oslc:CreationFactory>
+            <dcterms:title rdf:parseType="Literal">Location for creation of Impediment change requests </dcterms:title>
+            <oslc:usage rdf:resource="http://jazz.net/xmlns/prod/jazz/rtc/cm/1.0/com.ibm.team.workitem.workItemType.impediment"/>
+            <oslc:resourceType rdf:resource="http://open-services.net/ns/cm#ChangeRequest"/>
+            <oslc:resourceType rdf:resource="https://oslclnx2.rtp.raleigh.ibm.com:9443/ccm/oslc/types/_pMhMgPsWEeSnQvDHoYok5w/com.ibm.team.workitem.workItemType.impediment"/>
+            <oslc:resourceShape rdf:resource="https://oslclnx2.rtp.raleigh.ibm.com:9443/ccm/oslc/context/_pMhMgPsWEeSnQvDHoYok5w/shapes/workitems/com.ibm.team.workitem.workItemType.impediment"/>
+            <oslc:creation rdf:resource="https://oslclnx2.rtp.raleigh.ibm.com:9443/ccm/oslc/contexts/_pMhMgPsWEeSnQvDHoYok5w/workitems/com.ibm.team.workitem.workItemType.impediment"/>
+          </oslc:CreationFactory>
+        </oslc:creationFactory>
+        <oslc:creationFactory>
+          <oslc:CreationFactory>
+            <dcterms:title rdf:parseType="Literal">Location for creation of Adoption Item change requests </dcterms:title>
+            <oslc:usage rdf:resource="http://jazz.net/xmlns/prod/jazz/rtc/cm/1.0/com.ibm.team.workItemType.adoption"/>
+            <oslc:resourceType rdf:resource="http://open-services.net/ns/cm#ChangeRequest"/>
+            <oslc:resourceType rdf:resource="https://oslclnx2.rtp.raleigh.ibm.com:9443/ccm/oslc/types/_pMhMgPsWEeSnQvDHoYok5w/com.ibm.team.workItemType.adoption"/>
+            <oslc:resourceShape rdf:resource="https://oslclnx2.rtp.raleigh.ibm.com:9443/ccm/oslc/context/_pMhMgPsWEeSnQvDHoYok5w/shapes/workitems/com.ibm.team.workItemType.adoption"/>
+            <oslc:creation rdf:resource="https://oslclnx2.rtp.raleigh.ibm.com:9443/ccm/oslc/contexts/_pMhMgPsWEeSnQvDHoYok5w/workitems/com.ibm.team.workItemType.adoption"/>
+          </oslc:CreationFactory>
+        </oslc:creationFactory>
+        <oslc:creationFactory>
+          <oslc:CreationFactory>
+            <dcterms:title rdf:parseType="Literal">Location for creation of Retrospective change requests </dcterms:title>
+            <oslc:usage rdf:resource="http://jazz.net/xmlns/prod/jazz/rtc/cm/1.0/com.ibm.team.workitem.workItemType.retrospective"/>
+            <oslc:resourceType rdf:resource="http://open-services.net/ns/cm#ChangeRequest"/>
+            <oslc:resourceType rdf:resource="https://oslclnx2.rtp.raleigh.ibm.com:9443/ccm/oslc/types/_pMhMgPsWEeSnQvDHoYok5w/com.ibm.team.workitem.workItemType.retrospective"/>
+            <oslc:resourceShape rdf:resource="https://oslclnx2.rtp.raleigh.ibm.com:9443/ccm/oslc/context/_pMhMgPsWEeSnQvDHoYok5w/shapes/workitems/com.ibm.team.workitem.workItemType.retrospective"/>
+            <oslc:creation rdf:resource="https://oslclnx2.rtp.raleigh.ibm.com:9443/ccm/oslc/contexts/_pMhMgPsWEeSnQvDHoYok5w/workitems/com.ibm.team.workitem.workItemType.retrospective"/>
+          </oslc:CreationFactory>
+        </oslc:creationFactory>
+        <oslc:creationFactory>
+          <oslc:CreationFactory>
+            <dcterms:title rdf:parseType="Literal">Location for creation of change requests</dcterms:title>
+            <oslc:resourceType rdf:resource="http://open-services.net/ns/cm#ChangeRequest"/>
+            <oslc:resourceShape rdf:resource="https://oslclnx2.rtp.raleigh.ibm.com:9443/ccm/oslc/context/_pMhMgPsWEeSnQvDHoYok5w/shapes/workitems/defect"/>
+            <oslc:creation rdf:resource="https://oslclnx2.rtp.raleigh.ibm.com:9443/ccm/oslc/contexts/_pMhMgPsWEeSnQvDHoYok5w/workitems"/>
+          </oslc:CreationFactory>
+        </oslc:creationFactory>
+        <oslc:creationFactory>
+          <oslc:CreationFactory>
+            <dcterms:title rdf:parseType="Literal">Location for creation of draft change requests</dcterms:title>
+            <oslc:usage rdf:resource="http://jazz.net/xmlns/prod/jazz/rtc/cm/1.0/drafts"/>
+            <oslc:resourceType rdf:resource="http://open-services.net/ns/cm#ChangeRequest"/>
+            <oslc:creation rdf:resource="https://oslclnx2.rtp.raleigh.ibm.com:9443/ccm/oslc/contexts/_pMhMgPsWEeSnQvDHoYok5w/drafts/workitems"/>
+          </oslc:CreationFactory>
+        </oslc:creationFactory>
+        <oslc:queryCapability>
+          <oslc:QueryCapability>
+            <dcterms:title rdf:parseType="Literal">Change request queries</dcterms:title>
+            <oslc:usage rdf:resource="http://open-services.net/ns/core#default"/>
+            <oslc:resourceType rdf:resource="http://open-services.net/ns/cm#ChangeRequest"/>
+            <oslc:resourceShape rdf:resource="https://oslclnx2.rtp.raleigh.ibm.com:9443/ccm/oslc/context/_pMhMgPsWEeSnQvDHoYok5w/shapes/workitems/query"/>
+            <oslc:queryBase rdf:resource="https://oslclnx2.rtp.raleigh.ibm.com:9443/ccm/oslc/contexts/_pMhMgPsWEeSnQvDHoYok5w/workitems"/>
+          </oslc:QueryCapability>
+        </oslc:queryCapability>
+        <oslc:creationDialog>
+          <oslc:Dialog>
+            <dcterms:title rdf:parseType="Literal">New Defect</dcterms:title>
+            <oslc:label>Defect</oslc:label>
+            <oslc:usage rdf:resource="http://open-services.net/ns/core#default"/>
+            <oslc:usage rdf:resource="http://open-services.net/ns/cm#defect"/>
+            <oslc:resourceType rdf:resource="http://open-services.net/ns/cm#ChangeRequest"/>
+            <oslc:dialog rdf:resource="https://oslclnx2.rtp.raleigh.ibm.com:9443/ccm/oslc/contexts/_pMhMgPsWEeSnQvDHoYok5w/modules/com.ibm.team.workitem.WICreationDialog?projectAreaId=_pMhMgPsWEeSnQvDHoYok5w&amp;showLoginLink=true&amp;dc%3Atype=defect"/>
+            <oslc:hintWidth>680px</oslc:hintWidth>
+            <oslc:hintHeight>505px</oslc:hintHeight>
+          </oslc:Dialog>
+        </oslc:creationDialog>
+        <oslc:creationDialog>
+          <oslc:Dialog>
+            <dcterms:title rdf:parseType="Literal">New Plan Item</dcterms:title>
+            <oslc:label>Plan Item</oslc:label>
+            <oslc:usage rdf:resource="http://open-services.net/ns/cm#planItem"/>
+            <oslc:resourceType rdf:resource="http://open-services.net/ns/cm#ChangeRequest"/>
+            <oslc:dialog rdf:resource="https://oslclnx2.rtp.raleigh.ibm.com:9443/ccm/oslc/contexts/_pMhMgPsWEeSnQvDHoYok5w/modules/com.ibm.team.workitem.WICreationDialog?projectAreaId=_pMhMgPsWEeSnQvDHoYok5w&amp;showLoginLink=true&amp;dc%3Atype=com.ibm.team.apt.workItemType.story"/>
+            <oslc:hintWidth>680px</oslc:hintWidth>
+            <oslc:hintHeight>545px</oslc:hintHeight>
+          </oslc:Dialog>
+        </oslc:creationDialog>
+        <oslc:creationDialog>
+          <oslc:Dialog>
+            <dcterms:title rdf:parseType="Literal">New Task</dcterms:title>
+            <oslc:label>Task</oslc:label>
+            <oslc:usage rdf:resource="http://open-services.net/ns/cm#task"/>
+            <oslc:resourceType rdf:resource="http://open-services.net/ns/cm#ChangeRequest"/>
+            <oslc:dialog rdf:resource="https://oslclnx2.rtp.raleigh.ibm.com:9443/ccm/oslc/contexts/_pMhMgPsWEeSnQvDHoYok5w/modules/com.ibm.team.workitem.WICreationDialog?projectAreaId=_pMhMgPsWEeSnQvDHoYok5w&amp;showLoginLink=true&amp;dc%3Atype=task"/>
+            <oslc:hintWidth>680px</oslc:hintWidth>
+            <oslc:hintHeight>505px</oslc:hintHeight>
+          </oslc:Dialog>
+        </oslc:creationDialog>
+        <oslc:creationDialog>
+          <oslc:Dialog>
+            <dcterms:title rdf:parseType="Literal">New Requirement Change Request</dcterms:title>
+            <oslc:label>Requirement Change Request</oslc:label>
+            <oslc:usage rdf:resource="http://open-services.net/ns/cm#requirementsChangeRequest"/>
+            <oslc:resourceType rdf:resource="http://open-services.net/ns/cm#ChangeRequest"/>
+            <oslc:dialog rdf:resource="https://oslclnx2.rtp.raleigh.ibm.com:9443/ccm/oslc/contexts/_pMhMgPsWEeSnQvDHoYok5w/modules/com.ibm.team.workitem.WICreationDialog?projectAreaId=_pMhMgPsWEeSnQvDHoYok5w&amp;showLoginLink=true&amp;dc%3Atype=task"/>
+            <oslc:hintWidth>680px</oslc:hintWidth>
+            <oslc:hintHeight>505px</oslc:hintHeight>
+          </oslc:Dialog>
+        </oslc:creationDialog>
+        <oslc:selectionDialog>
+          <oslc:Dialog>
+            <dcterms:title rdf:parseType="Literal">Select Change Request</dcterms:title>
+            <oslc:label>Change Request</oslc:label>
+            <oslc:usage rdf:resource="http://open-services.net/ns/core#default"/>
+            <oslc:resourceType rdf:resource="http://open-services.net/ns/cm#ChangeRequest"/>
+            <oslc:dialog rdf:resource="https://oslclnx2.rtp.raleigh.ibm.com:9443/ccm/_ajax-modules/com.ibm.team.workitem.WIPicker?projectAreaId=_pMhMgPsWEeSnQvDHoYok5w&amp;showLoginLink=true&amp;allowsMultiple=true"/>
+            <oslc:hintWidth>550px</oslc:hintWidth>
+            <oslc:hintHeight>460px</oslc:hintHeight>
+          </oslc:Dialog>
+        </oslc:selectionDialog>
+        <oslc:selectionDialog>
+          <oslc:Dialog>
+            <dcterms:title rdf:parseType="Literal">Select Defect</dcterms:title>
+            <oslc:label>Defect</oslc:label>
+            <oslc:usage rdf:resource="http://open-services.net/ns/cm#defect"/>
+            <oslc:resourceType rdf:resource="http://open-services.net/ns/cm#ChangeRequest"/>
+            <oslc:dialog rdf:resource="https://oslclnx2.rtp.raleigh.ibm.com:9443/ccm/_ajax-modules/com.ibm.team.workitem.WIPicker?projectAreaId=_pMhMgPsWEeSnQvDHoYok5w&amp;showLoginLink=true&amp;allowsMultiple=true&amp;dc%3Atype=defect"/>
+            <oslc:hintWidth>550px</oslc:hintWidth>
+            <oslc:hintHeight>460px</oslc:hintHeight>
+          </oslc:Dialog>
+        </oslc:selectionDialog>
+        <oslc:selectionDialog>
+          <oslc:Dialog>
+            <dcterms:title rdf:parseType="Literal">Select Plan Item</dcterms:title>
+            <oslc:label>Plan Item</oslc:label>
+            <oslc:usage rdf:resource="http://open-services.net/ns/cm#planItem"/>
+            <oslc:resourceType rdf:resource="http://open-services.net/ns/cm#ChangeRequest"/>
+            <oslc:dialog rdf:resource="https://oslclnx2.rtp.raleigh.ibm.com:9443/ccm/_ajax-modules/com.ibm.team.workitem.WIPicker?projectAreaId=_pMhMgPsWEeSnQvDHoYok5w&amp;showLoginLink=true&amp;allowsMultiple=true&amp;dc%3Atype=com.ibm.team.apt.workItemType.story"/>
+            <oslc:hintWidth>550px</oslc:hintWidth>
+            <oslc:hintHeight>460px</oslc:hintHeight>
+          </oslc:Dialog>
+        </oslc:selectionDialog>
+        <oslc:selectionDialog>
+          <oslc:Dialog>
+            <dcterms:title rdf:parseType="Literal">Select Task</dcterms:title>
+            <oslc:label>Task</oslc:label>
+            <oslc:usage rdf:resource="http://open-services.net/ns/cm#task"/>
+            <oslc:resourceType rdf:resource="http://open-services.net/ns/cm#ChangeRequest"/>
+            <oslc:dialog rdf:resource="https://oslclnx2.rtp.raleigh.ibm.com:9443/ccm/_ajax-modules/com.ibm.team.workitem.WIPicker?projectAreaId=_pMhMgPsWEeSnQvDHoYok5w&amp;showLoginLink=true&amp;allowsMultiple=true&amp;dc%3Atype=task"/>
+            <oslc:hintWidth>550px</oslc:hintWidth>
+            <oslc:hintHeight>460px</oslc:hintHeight>
+          </oslc:Dialog>
+        </oslc:selectionDialog>
+        <oslc:selectionDialog>
+          <oslc:Dialog>
+            <dcterms:title rdf:parseType="Literal">Requirement Change Request</dcterms:title>
+            <oslc:label>Requirement Change Request</oslc:label>
+            <oslc:usage rdf:resource="http://open-services.net/ns/cm#requirementsChangeRequest"/>
+            <oslc:resourceType rdf:resource="http://open-services.net/ns/cm#ChangeRequest"/>
+            <oslc:dialog rdf:resource="https://oslclnx2.rtp.raleigh.ibm.com:9443/ccm/_ajax-modules/com.ibm.team.workitem.WIPicker?projectAreaId=_pMhMgPsWEeSnQvDHoYok5w&amp;showLoginLink=true&amp;allowsMultiple=true&amp;dc%3Atype=task"/>
+            <oslc:hintWidth>550px</oslc:hintWidth>
+            <oslc:hintHeight>460px</oslc:hintHeight>
+          </oslc:Dialog>
+        </oslc:selectionDialog>
+        <calm:filter>
+          <calm:Filter>
+            <dcterms:title rdf:parseType="Literal">Open Change Requests Filter</dcterms:title>
+            <oslc:usage rdf:resource="http://jazz.net/xmlns/prod/jazz/calm/1.0/openItems"/>
+            <oslc:resourceType rdf:resource="http://open-services.net/ns/cm#ChangeRequest"/>
+            <calm:filterBase rdf:resource="https://oslclnx2.rtp.raleigh.ibm.com:9443/ccm/oslc/calm-filter/_pMhMgPsWEeSnQvDHoYok5w/openItems"/>
+          </calm:Filter>
+        </calm:filter>
+        <calm:filter>
+          <calm:Filter>
+            <dcterms:title rdf:parseType="Literal">Resolved Change Requests Filter</dcterms:title>
+            <oslc:usage rdf:resource="http://jazz.net/xmlns/prod/jazz/calm/1.0/resolvedItems"/>
+            <oslc:resourceType rdf:resource="http://open-services.net/ns/cm#ChangeRequest"/>
+            <calm:filterBase rdf:resource="https://oslclnx2.rtp.raleigh.ibm.com:9443/ccm/oslc/calm-filter/_pMhMgPsWEeSnQvDHoYok5w/resolvedItems"/>
+          </calm:Filter>
+        </calm:filter>
+        <calm:filter>
+          <calm:Filter>
+            <dcterms:title rdf:parseType="Literal">Ready for Testing Change Requests Filter</dcterms:title>
+            <oslc:usage rdf:resource="http://jazz.net/xmlns/prod/jazz/calm/1.0/readyForTesting"/>
+            <oslc:resourceType rdf:resource="http://open-services.net/ns/cm#ChangeRequest"/>
+            <calm:filterBase rdf:resource="https://oslclnx2.rtp.raleigh.ibm.com:9443/ccm/oslc/calm-filter/_pMhMgPsWEeSnQvDHoYok5w/readyForTesting"/>
+          </calm:Filter>
+        </calm:filter>
+        <calm:module>
+          <calm:Module>
+            <dcterms:title rdf:parseType="Literal">Embeddable Work Item Web Module</dcterms:title>
+            <oslc:usage rdf:resource="http://jazz.net/xmlns/prod/jazz/calm/1.0/embedded-cm"/>
+            <calm:moduleDefinition rdf:resource="https://oslclnx2.rtp.raleigh.ibm.com:9443/ccm/web/com.ibm.team.workitem.web/ui/internal/module/WorkItemGadget.xml?projectAreaItemId=_pMhMgPsWEeSnQvDHoYok5w"/>
+          </calm:Module>
+        </calm:module>
+        <calm:rpc>
+          <calm:OpenSocialRPC>
+            <dcterms:title rdf:parseType="Literal">Work Items Home</dcterms:title>
+            <oslc:usage rdf:resource="http://jazz.net/xmlns/prod/jazz/calm/1.0/home"/>
+            <calm:rpcService>OSLC_requestAction</calm:rpcService>
+            <calm:rpcArg>action=com.ibm.team.workitem.viewWelcome</calm:rpcArg>
+          </calm:OpenSocialRPC>
+        </calm:rpc>
+        <calm:rpc>
+          <calm:OpenSocialRPC>
+            <dcterms:title rdf:parseType="Literal">Create Defect</dcterms:title>
+            <oslc:usage rdf:resource="http://open-services.net/ns/cm#defect"/>
+            <calm:rpcService>OSLC_requestAction</calm:rpcService>
+            <calm:rpcArg>action=com.ibm.team.workitem.newWorkItem&amp;type=defect</calm:rpcArg>
+          </calm:OpenSocialRPC>
+        </calm:rpc>
+        <calm:rpc>
+          <calm:OpenSocialRPC>
+            <dcterms:title rdf:parseType="Literal">Create Task</dcterms:title>
+            <oslc:usage rdf:resource="http://open-services.net/ns/cm#task"/>
+            <calm:rpcService>OSLC_requestAction</calm:rpcService>
+            <calm:rpcArg>action=com.ibm.team.workitem.newWorkItem&amp;type=task</calm:rpcArg>
+          </calm:OpenSocialRPC>
+        </calm:rpc>
+        <calm:rpc>
+          <calm:OpenSocialRPC>
+            <dcterms:title rdf:parseType="Literal">Queries</dcterms:title>
+            <oslc:usage rdf:resource="http://jazz.net/xmlns/prod/jazz/calm/1.0/query-page"/>
+            <calm:rpcService>OSLC_requestAction</calm:rpcService>
+            <calm:rpcArg>action=com.ibm.team.workitem.viewQueries</calm:rpcArg>
+          </calm:OpenSocialRPC>
+        </calm:rpc>
+      </oslc:Service>
+    </oslc:service>
+    <oslc:service>
+      <oslc:Service>
+        <oslc:domain rdf:resource="http://open-services.net/ns/cm-x#"/>
+        <calm:home>
+          <calm:Home>
+            <dcterms:title rdf:parseType="Literal">Plans Home</dcterms:title>
+            <calm:webHome rdf:resource="https://oslclnx2.rtp.raleigh.ibm.com:9443/ccm/web/projects/JKE%20Banking%20%28Change%20Management%29#action=com.ibm.team.apt.welcome"/>
+          </calm:Home>
+        </calm:home>
+        <oslc:selectionDialog>
+          <oslc:Dialog>
+            <dcterms:title rdf:parseType="Literal">Plan</dcterms:title>
+            <oslc:label>Plan</oslc:label>
+            <oslc:usage rdf:resource="http://open-services.net/ns/core#default"/>
+            <oslc:resourceType rdf:resource="http://open-services.net/ns/cm-x#Plan"/>
+            <oslc:dialog rdf:resource="https://oslclnx2.rtp.raleigh.ibm.com:9443/ccm/_ajax-modules/com.ibm.team.apt.PlanSelectionDialog?projectAreaId=_pMhMgPsWEeSnQvDHoYok5w&amp;showLoginLink=true"/>
+            <oslc:hintWidth>550px</oslc:hintWidth>
+            <oslc:hintHeight>360px</oslc:hintHeight>
+          </oslc:Dialog>
+        </oslc:selectionDialog>
+      </oslc:Service>
+    </oslc:service>
+  </oslc:ServiceProvider>
+  <oslc:ServiceProvider rdf:ID="#relative">
+    <dcterms:title rdf:parseType="Literal">Relative URI reference</dcterms:title>
+  </oslc:ServiceProvider>
+</rdf:RDF>

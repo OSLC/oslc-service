@@ -1,5 +1,4 @@
-/*
- * Copyright 2014 IBM Corporation.
+ /* Copyright 2014 IBM Corporation.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -98,7 +97,7 @@ var oslcRoutes = function(env) {
 		// Handle selective properties
 		ldpService.get(req, res, (status, document) => {
 			if (status !== 200) {
-				res.status(status).send(`Cannot get resource ${req.originalUrl}\n`);
+				res.status(status).send(`Cannot get resource ${req.originalUrl}: ${status}\n`);
 				return;
 			}
 			// determine what format to serialize using the Accept header
@@ -155,7 +154,7 @@ var oslcRoutes = function(env) {
 }
 
 module.exports = function(env) {
-	// initialize the database from the ServiceProviderCatalog provided in the env
 	appBase = env.appBase
+	// TODO: initialize the database from the ServiceProviderCatalog provided in the env.services
 	return oslcRoutes(env);
 }

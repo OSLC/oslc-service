@@ -1,0 +1,358 @@
+
+Service Providers (from N3 using jsonld):
+{
+  "@graph": [
+    {
+      "@id": "_:b0",
+      "@type": "http://open-services.net/ns/core#Publisher",
+      "http://open-services.net/ns/core#icon": {
+        "@id": "https://oslclnx2.rtp.raleigh.ibm.com:9443/ccm/web/com.ibm.team.rtc.web/ui/graphics/UICustomizations/RationalTeamConcert.ico"
+      },
+      "http://purl.org/dc/terms/identifier": "com.ibm.team.workitem",
+      "http://purl.org/dc/terms/title": {
+        "@type": "http://www.w3.org/1999/02/22-rdf-syntax-ns#XMLLiteral",
+        "@value": "IBM Rational Team Concert Work Items"
+      }
+    },
+    {
+      "@id": "http://open-services.net/ns/cm#"
+    },
+    {
+      "@id": "https://oslclnx2.rtp.raleigh.ibm.com:9443/ccm/oslc/contexts/_SSJ_4P8DEeSQtPcnT3mjXQ/workitems/services.xml",
+      "@type": "http://open-services.net/ns/core#ServiceProvider",
+      "http://jazz.net/xmlns/prod/jazz/process/1.0/consumerRegistry": {
+        "@id": "https://oslclnx2.rtp.raleigh.ibm.com:9443/ccm/process/project-areas/_SSJ_4P8DEeSQtPcnT3mjXQ/links"
+      },
+      "http://jazz.net/xmlns/prod/jazz/process/1.0/globalConfigurationAware": {
+        "@type": "http://www.w3.org/1999/02/22-rdf-syntax-ns#XMLLiteral",
+        "@value": "compatible"
+      },
+      "http://jazz.net/xmlns/prod/jazz/process/1.0/supportContributionsToLinkIndexProvider": {
+        "@type": "http://www.w3.org/1999/02/22-rdf-syntax-ns#XMLLiteral",
+        "@value": "true"
+      },
+      "http://jazz.net/xmlns/prod/jazz/process/1.0/supportLinkDiscoveryViaLinkIndexProvider": {
+        "@type": "http://www.w3.org/1999/02/22-rdf-syntax-ns#XMLLiteral",
+        "@value": "false"
+      },
+      "http://open-services.net/ns/core#details": {
+        "@id": "https://oslclnx2.rtp.raleigh.ibm.com:9443/ccm/process/project-areas/_SSJ_4P8DEeSQtPcnT3mjXQ"
+      },
+      "http://purl.org/dc/terms/title": {
+        "@type": "http://www.w3.org/1999/02/22-rdf-syntax-ns#XMLLiteral",
+        "@value": "RELM Basic (Change Management)"
+      }
+    },
+    {
+      "@id": "https://oslclnx2.rtp.raleigh.ibm.com:9443/ccm/oslc/contexts/_XTHEEBjoEeWcNJtNeNtMmg/workitems/services.xml",
+      "@type": "http://open-services.net/ns/core#ServiceProvider",
+      "http://jazz.net/xmlns/prod/jazz/process/1.0/consumerRegistry": {
+        "@id": "https://oslclnx2.rtp.raleigh.ibm.com:9443/ccm/process/project-areas/_XTHEEBjoEeWcNJtNeNtMmg/links"
+      },
+      "http://jazz.net/xmlns/prod/jazz/process/1.0/globalConfigurationAware": {
+        "@type": "http://www.w3.org/1999/02/22-rdf-syntax-ns#XMLLiteral",
+        "@value": "compatible"
+      },
+      "http://jazz.net/xmlns/prod/jazz/process/1.0/supportContributionsToLinkIndexProvider": {
+        "@type": "http://www.w3.org/1999/02/22-rdf-syntax-ns#XMLLiteral",
+        "@value": "true"
+      },
+      "http://jazz.net/xmlns/prod/jazz/process/1.0/supportLinkDiscoveryViaLinkIndexProvider": {
+        "@type": "http://www.w3.org/1999/02/22-rdf-syntax-ns#XMLLiteral",
+        "@value": "false"
+      },
+      "http://open-services.net/ns/core#details": {
+        "@id": "https://oslclnx2.rtp.raleigh.ibm.com:9443/ccm/process/project-areas/_XTHEEBjoEeWcNJtNeNtMmg"
+      },
+      "http://purl.org/dc/terms/title": {
+        "@type": "http://www.w3.org/1999/02/22-rdf-syntax-ns#XMLLiteral",
+        "@value": "JUnit Project"
+      }
+    },
+    {
+      "@id": "https://oslclnx2.rtp.raleigh.ibm.com:9443/ccm/oslc/contexts/_pMhMgPsWEeSnQvDHoYok5w/workitems/services.xml",
+      "@type": "http://open-services.net/ns/core#ServiceProvider",
+      "http://jazz.net/xmlns/prod/jazz/process/1.0/consumerRegistry": {
+        "@id": "https://oslclnx2.rtp.raleigh.ibm.com:9443/ccm/process/project-areas/_pMhMgPsWEeSnQvDHoYok5w/links"
+      },
+      "http://jazz.net/xmlns/prod/jazz/process/1.0/globalConfigurationAware": {
+        "@type": "http://www.w3.org/1999/02/22-rdf-syntax-ns#XMLLiteral",
+        "@value": "compatible"
+      },
+      "http://jazz.net/xmlns/prod/jazz/process/1.0/supportContributionsToLinkIndexProvider": {
+        "@type": "http://www.w3.org/1999/02/22-rdf-syntax-ns#XMLLiteral",
+        "@value": "true"
+      },
+      "http://jazz.net/xmlns/prod/jazz/process/1.0/supportLinkDiscoveryViaLinkIndexProvider": {
+        "@type": "http://www.w3.org/1999/02/22-rdf-syntax-ns#XMLLiteral",
+        "@value": "false"
+      },
+      "http://open-services.net/ns/core#details": {
+        "@id": "https://oslclnx2.rtp.raleigh.ibm.com:9443/ccm/process/project-areas/_pMhMgPsWEeSnQvDHoYok5w"
+      },
+      "http://purl.org/dc/terms/title": {
+        "@type": "http://www.w3.org/1999/02/22-rdf-syntax-ns#XMLLiteral",
+        "@value": "JKE Banking (Change Management)"
+      }
+    },
+    {
+      "@id": "https://oslclnx2.rtp.raleigh.ibm.com:9443/ccm/oslc/workitems/catalog",
+      "@type": "http://open-services.net/ns/core#ServiceProviderCatalog",
+      "http://open-services.net/ns/core#domain": {
+        "@id": "http://open-services.net/ns/cm#"
+      },
+      "http://open-services.net/ns/core#serviceProvider": [
+        {
+          "@id": "https://oslclnx2.rtp.raleigh.ibm.com:9443/ccm/oslc/contexts/_SSJ_4P8DEeSQtPcnT3mjXQ/workitems/services.xml",
+          "@type": "http://open-services.net/ns/core#ServiceProvider",
+          "http://jazz.net/xmlns/prod/jazz/process/1.0/consumerRegistry": {
+            "@id": "https://oslclnx2.rtp.raleigh.ibm.com:9443/ccm/process/project-areas/_SSJ_4P8DEeSQtPcnT3mjXQ/links"
+          },
+          "http://jazz.net/xmlns/prod/jazz/process/1.0/globalConfigurationAware": {
+            "@type": "http://www.w3.org/1999/02/22-rdf-syntax-ns#XMLLiteral",
+            "@value": "compatible"
+          },
+          "http://jazz.net/xmlns/prod/jazz/process/1.0/supportContributionsToLinkIndexProvider": {
+            "@type": "http://www.w3.org/1999/02/22-rdf-syntax-ns#XMLLiteral",
+            "@value": "true"
+          },
+          "http://jazz.net/xmlns/prod/jazz/process/1.0/supportLinkDiscoveryViaLinkIndexProvider": {
+            "@type": "http://www.w3.org/1999/02/22-rdf-syntax-ns#XMLLiteral",
+            "@value": "false"
+          },
+          "http://open-services.net/ns/core#details": {
+            "@id": "https://oslclnx2.rtp.raleigh.ibm.com:9443/ccm/process/project-areas/_SSJ_4P8DEeSQtPcnT3mjXQ"
+          },
+          "http://purl.org/dc/terms/title": {
+            "@type": "http://www.w3.org/1999/02/22-rdf-syntax-ns#XMLLiteral",
+            "@value": "RELM Basic (Change Management)"
+          }
+        },
+        {
+          "@id": "https://oslclnx2.rtp.raleigh.ibm.com:9443/ccm/oslc/contexts/_pMhMgPsWEeSnQvDHoYok5w/workitems/services.xml",
+          "@type": "http://open-services.net/ns/core#ServiceProvider",
+          "http://jazz.net/xmlns/prod/jazz/process/1.0/consumerRegistry": {
+            "@id": "https://oslclnx2.rtp.raleigh.ibm.com:9443/ccm/process/project-areas/_pMhMgPsWEeSnQvDHoYok5w/links"
+          },
+          "http://jazz.net/xmlns/prod/jazz/process/1.0/globalConfigurationAware": {
+            "@type": "http://www.w3.org/1999/02/22-rdf-syntax-ns#XMLLiteral",
+            "@value": "compatible"
+          },
+          "http://jazz.net/xmlns/prod/jazz/process/1.0/supportContributionsToLinkIndexProvider": {
+            "@type": "http://www.w3.org/1999/02/22-rdf-syntax-ns#XMLLiteral",
+            "@value": "true"
+          },
+          "http://jazz.net/xmlns/prod/jazz/process/1.0/supportLinkDiscoveryViaLinkIndexProvider": {
+            "@type": "http://www.w3.org/1999/02/22-rdf-syntax-ns#XMLLiteral",
+            "@value": "false"
+          },
+          "http://open-services.net/ns/core#details": {
+            "@id": "https://oslclnx2.rtp.raleigh.ibm.com:9443/ccm/process/project-areas/_pMhMgPsWEeSnQvDHoYok5w"
+          },
+          "http://purl.org/dc/terms/title": {
+            "@type": "http://www.w3.org/1999/02/22-rdf-syntax-ns#XMLLiteral",
+            "@value": "JKE Banking (Change Management)"
+          }
+        },
+        {
+          "@id": "https://oslclnx2.rtp.raleigh.ibm.com:9443/ccm/oslc/contexts/_XTHEEBjoEeWcNJtNeNtMmg/workitems/services.xml",
+          "@type": "http://open-services.net/ns/core#ServiceProvider",
+          "http://jazz.net/xmlns/prod/jazz/process/1.0/consumerRegistry": {
+            "@id": "https://oslclnx2.rtp.raleigh.ibm.com:9443/ccm/process/project-areas/_XTHEEBjoEeWcNJtNeNtMmg/links"
+          },
+          "http://jazz.net/xmlns/prod/jazz/process/1.0/globalConfigurationAware": {
+            "@type": "http://www.w3.org/1999/02/22-rdf-syntax-ns#XMLLiteral",
+            "@value": "compatible"
+          },
+          "http://jazz.net/xmlns/prod/jazz/process/1.0/supportContributionsToLinkIndexProvider": {
+            "@type": "http://www.w3.org/1999/02/22-rdf-syntax-ns#XMLLiteral",
+            "@value": "true"
+          },
+          "http://jazz.net/xmlns/prod/jazz/process/1.0/supportLinkDiscoveryViaLinkIndexProvider": {
+            "@type": "http://www.w3.org/1999/02/22-rdf-syntax-ns#XMLLiteral",
+            "@value": "false"
+          },
+          "http://open-services.net/ns/core#details": {
+            "@id": "https://oslclnx2.rtp.raleigh.ibm.com:9443/ccm/process/project-areas/_XTHEEBjoEeWcNJtNeNtMmg"
+          },
+          "http://purl.org/dc/terms/title": {
+            "@type": "http://www.w3.org/1999/02/22-rdf-syntax-ns#XMLLiteral",
+            "@value": "JUnit Project"
+          }
+        }
+      ],
+      "http://purl.org/dc/terms/publisher": {
+        "@id": "_:b0",
+        "@type": "http://open-services.net/ns/core#Publisher",
+        "http://open-services.net/ns/core#icon": {
+          "@id": "https://oslclnx2.rtp.raleigh.ibm.com:9443/ccm/web/com.ibm.team.rtc.web/ui/graphics/UICustomizations/RationalTeamConcert.ico"
+        },
+        "http://purl.org/dc/terms/identifier": "com.ibm.team.workitem",
+        "http://purl.org/dc/terms/title": {
+          "@type": "http://www.w3.org/1999/02/22-rdf-syntax-ns#XMLLiteral",
+          "@value": "IBM Rational Team Concert Work Items"
+        }
+      },
+      "http://purl.org/dc/terms/title": {
+        "@type": "http://www.w3.org/1999/02/22-rdf-syntax-ns#XMLLiteral",
+        "@value": "Project Areas"
+      }
+    },
+    {
+      "@id": "https://oslclnx2.rtp.raleigh.ibm.com:9443/ccm/process/project-areas/_SSJ_4P8DEeSQtPcnT3mjXQ"
+    },
+    {
+      "@id": "https://oslclnx2.rtp.raleigh.ibm.com:9443/ccm/process/project-areas/_SSJ_4P8DEeSQtPcnT3mjXQ/links"
+    },
+    {
+      "@id": "https://oslclnx2.rtp.raleigh.ibm.com:9443/ccm/process/project-areas/_XTHEEBjoEeWcNJtNeNtMmg"
+    },
+    {
+      "@id": "https://oslclnx2.rtp.raleigh.ibm.com:9443/ccm/process/project-areas/_XTHEEBjoEeWcNJtNeNtMmg/links"
+    },
+    {
+      "@id": "https://oslclnx2.rtp.raleigh.ibm.com:9443/ccm/process/project-areas/_pMhMgPsWEeSnQvDHoYok5w"
+    },
+    {
+      "@id": "https://oslclnx2.rtp.raleigh.ibm.com:9443/ccm/process/project-areas/_pMhMgPsWEeSnQvDHoYok5w/links"
+    },
+    {
+      "@id": "https://oslclnx2.rtp.raleigh.ibm.com:9443/ccm/web/com.ibm.team.rtc.web/ui/graphics/UICustomizations/RationalTeamConcert.ico"
+    }
+  ]
+}
+{
+  "@context": {
+    "serviceProvider": {
+      "@id": "http://open-services.net/ns/core#serviceProvider",
+      "@type": "@id"
+    },
+    "domain": {
+      "@id": "http://open-services.net/ns/core#domain",
+      "@type": "@id"
+    },
+    "publisher": {
+      "@id": "http://purl.org/dc/terms/publisher",
+      "@type": "@id"
+    },
+    "title": {
+      "@id": "http://purl.org/dc/terms/title",
+      "@type": "http://www.w3.org/1999/02/22-rdf-syntax-ns#XMLLiteral"
+    },
+    "consumerRegistry": {
+      "@id": "http://jazz.net/xmlns/prod/jazz/process/1.0/consumerRegistry",
+      "@type": "@id"
+    },
+    "globalConfigurationAware": {
+      "@id": "http://jazz.net/xmlns/prod/jazz/process/1.0/globalConfigurationAware",
+      "@type": "http://www.w3.org/1999/02/22-rdf-syntax-ns#XMLLiteral"
+    },
+    "supportContributionsToLinkIndexProvider": {
+      "@id": "http://jazz.net/xmlns/prod/jazz/process/1.0/supportContributionsToLinkIndexProvider",
+      "@type": "http://www.w3.org/1999/02/22-rdf-syntax-ns#XMLLiteral"
+    },
+    "supportLinkDiscoveryViaLinkIndexProvider": {
+      "@id": "http://jazz.net/xmlns/prod/jazz/process/1.0/supportLinkDiscoveryViaLinkIndexProvider",
+      "@type": "http://www.w3.org/1999/02/22-rdf-syntax-ns#XMLLiteral"
+    },
+    "details": {
+      "@id": "http://open-services.net/ns/core#details",
+      "@type": "@id"
+    },
+    "icon": {
+      "@id": "http://open-services.net/ns/core#icon",
+      "@type": "@id"
+    },
+    "identifier": "http://purl.org/dc/terms/identifier",
+    "oslc": "http://open-services.net/ns/core#",
+    "rdf": "http://www.w3.org/1999/02/22-rdf-syntax-ns#",
+    "jfs_proc": "http://jazz.net/xmlns/prod/jazz/process/1.0/",
+    "dcterms": "http://purl.org/dc/terms/"
+  },
+  "@graph": [
+    {
+      "@id": "_:b0",
+      "@type": "oslc:Publisher",
+      "icon": "https://oslclnx2.rtp.raleigh.ibm.com:9443/ccm/web/com.ibm.team.rtc.web/ui/graphics/UICustomizations/RationalTeamConcert.ico",
+      "identifier": "com.ibm.team.workitem",
+      "title": "IBM Rational Team Concert Work Items"
+    },
+    {
+      "@id": "https://oslclnx2.rtp.raleigh.ibm.com:9443/ccm/oslc/contexts/_SSJ_4P8DEeSQtPcnT3mjXQ/workitems/services.xml",
+      "@type": "oslc:ServiceProvider",
+      "consumerRegistry": "https://oslclnx2.rtp.raleigh.ibm.com:9443/ccm/process/project-areas/_SSJ_4P8DEeSQtPcnT3mjXQ/links",
+      "globalConfigurationAware": "compatible",
+      "supportContributionsToLinkIndexProvider": "true",
+      "supportLinkDiscoveryViaLinkIndexProvider": "false",
+      "details": "https://oslclnx2.rtp.raleigh.ibm.com:9443/ccm/process/project-areas/_SSJ_4P8DEeSQtPcnT3mjXQ",
+      "title": "RELM Basic (Change Management)"
+    },
+    {
+      "@id": "https://oslclnx2.rtp.raleigh.ibm.com:9443/ccm/oslc/contexts/_XTHEEBjoEeWcNJtNeNtMmg/workitems/services.xml",
+      "@type": "oslc:ServiceProvider",
+      "consumerRegistry": "https://oslclnx2.rtp.raleigh.ibm.com:9443/ccm/process/project-areas/_XTHEEBjoEeWcNJtNeNtMmg/links",
+      "globalConfigurationAware": "compatible",
+      "supportContributionsToLinkIndexProvider": "true",
+      "supportLinkDiscoveryViaLinkIndexProvider": "false",
+      "details": "https://oslclnx2.rtp.raleigh.ibm.com:9443/ccm/process/project-areas/_XTHEEBjoEeWcNJtNeNtMmg",
+      "title": "JUnit Project"
+    },
+    {
+      "@id": "https://oslclnx2.rtp.raleigh.ibm.com:9443/ccm/oslc/contexts/_pMhMgPsWEeSnQvDHoYok5w/workitems/services.xml",
+      "@type": "oslc:ServiceProvider",
+      "consumerRegistry": "https://oslclnx2.rtp.raleigh.ibm.com:9443/ccm/process/project-areas/_pMhMgPsWEeSnQvDHoYok5w/links",
+      "globalConfigurationAware": "compatible",
+      "supportContributionsToLinkIndexProvider": "true",
+      "supportLinkDiscoveryViaLinkIndexProvider": "false",
+      "details": "https://oslclnx2.rtp.raleigh.ibm.com:9443/ccm/process/project-areas/_pMhMgPsWEeSnQvDHoYok5w",
+      "title": "JKE Banking (Change Management)"
+    },
+    {
+      "@id": "https://oslclnx2.rtp.raleigh.ibm.com:9443/ccm/oslc/workitems/catalog",
+      "@type": "oslc:ServiceProviderCatalog",
+      "domain": "http://open-services.net/ns/cm#",
+      "serviceProvider": [
+        {
+          "@id": "https://oslclnx2.rtp.raleigh.ibm.com:9443/ccm/oslc/contexts/_SSJ_4P8DEeSQtPcnT3mjXQ/workitems/services.xml",
+          "@type": "oslc:ServiceProvider",
+          "consumerRegistry": "https://oslclnx2.rtp.raleigh.ibm.com:9443/ccm/process/project-areas/_SSJ_4P8DEeSQtPcnT3mjXQ/links",
+          "globalConfigurationAware": "compatible",
+          "supportContributionsToLinkIndexProvider": "true",
+          "supportLinkDiscoveryViaLinkIndexProvider": "false",
+          "details": "https://oslclnx2.rtp.raleigh.ibm.com:9443/ccm/process/project-areas/_SSJ_4P8DEeSQtPcnT3mjXQ",
+          "title": "RELM Basic (Change Management)"
+        },
+        {
+          "@id": "https://oslclnx2.rtp.raleigh.ibm.com:9443/ccm/oslc/contexts/_pMhMgPsWEeSnQvDHoYok5w/workitems/services.xml",
+          "@type": "oslc:ServiceProvider",
+          "consumerRegistry": "https://oslclnx2.rtp.raleigh.ibm.com:9443/ccm/process/project-areas/_pMhMgPsWEeSnQvDHoYok5w/links",
+          "globalConfigurationAware": "compatible",
+          "supportContributionsToLinkIndexProvider": "true",
+          "supportLinkDiscoveryViaLinkIndexProvider": "false",
+          "details": "https://oslclnx2.rtp.raleigh.ibm.com:9443/ccm/process/project-areas/_pMhMgPsWEeSnQvDHoYok5w",
+          "title": "JKE Banking (Change Management)"
+        },
+        {
+          "@id": "https://oslclnx2.rtp.raleigh.ibm.com:9443/ccm/oslc/contexts/_XTHEEBjoEeWcNJtNeNtMmg/workitems/services.xml",
+          "@type": "oslc:ServiceProvider",
+          "consumerRegistry": "https://oslclnx2.rtp.raleigh.ibm.com:9443/ccm/process/project-areas/_XTHEEBjoEeWcNJtNeNtMmg/links",
+          "globalConfigurationAware": "compatible",
+          "supportContributionsToLinkIndexProvider": "true",
+          "supportLinkDiscoveryViaLinkIndexProvider": "false",
+          "details": "https://oslclnx2.rtp.raleigh.ibm.com:9443/ccm/process/project-areas/_XTHEEBjoEeWcNJtNeNtMmg",
+          "title": "JUnit Project"
+        }
+      ],
+      "publisher": {
+        "@id": "_:b0",
+        "@type": "oslc:Publisher",
+        "icon": "https://oslclnx2.rtp.raleigh.ibm.com:9443/ccm/web/com.ibm.team.rtc.web/ui/graphics/UICustomizations/RationalTeamConcert.ico",
+        "identifier": "com.ibm.team.workitem",
+        "title": "IBM Rational Team Concert Work Items"
+      },
+      "title": "Project Areas"
+    }
+  ]
+}
+JKE Banking (Change Management): https://oslclnx2.rtp.raleigh.ibm.com:9443/ccm/oslc/contexts/_pMhMgPsWEeSnQvDHoYok5w/workitems/services.xml
+[Finished in 0.2s]

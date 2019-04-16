@@ -597,12 +597,6 @@ function isMembershipPatternValid(document) {
 ldp.init = function init(env) {
 	appBase = env.appBase
 	db = env.storageService;
-	db.init(env, function(err) {
-		if (err) {
-			console.error(err)
-			console.error("Can't initialize the database.")
-		}
-	});
 }
 
 module.exports = ldp;
