@@ -1,5 +1,6 @@
 # oslc-service
 
+[![npm](https://img.shields.io/npm/v/oslc-service)](https://www.npmjs.com/package/oslc-service)
 [![Discourse status](https://img.shields.io/discourse/https/meta.discourse.org/status.svg)](https://forum.open-services.net/)
 [![Gitter](https://img.shields.io/gitter/room/nwjs/nw.js.svg)](https://gitter.im/OSLC/chat)
 
