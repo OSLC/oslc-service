@@ -7,11 +7,8 @@
   "author": "Jim Amsden",
   "contributors": "Jim Ruehlin <jruehlin@us.ibm.com>",
   "dependencies": {
-    "express": "~4.16.4",
+    "express": "~4.18.2",
     "rdflib": "^0.19.1"
-  },
-  "engines": {
-    "node": "~10.6.0"
   },
   "repository": {
     "type": "git",
