@@ -7,14 +7,20 @@
   "author": "Jim Amsden",
   "contributors": "Jim Ruehlin <jruehlin@us.ibm.com>",
   "dependencies": {
-    "express": "~4.16.4",
+    "express": "~5.2.1",
     "rdflib": "^0.19.1"
-  },
-  "engines": {
-    "node": "~10.6.0"
   },
   "repository": {
     "type": "git",
     "url": "https://github.com/OSLC/oslc-service.git"
+  },
+  "scripts": {
+    "test": "jest",
+    "test:watch": "jest --watch",
+    "test:coverage": "jest --coverage"
+  },
+  "devDependencies": {
+    "jest": "^30.2.0",
+    "supertest": "^7.2.2"
   }
 }

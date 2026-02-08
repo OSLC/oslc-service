@@ -71,7 +71,7 @@ var oslcRoutes = function(env) {
 	oslcApp.use(rawBody);
 
 	// anything not previously handled will be handled by oslcApp
-	var oslcRoute = oslcApp.route(env.context+'*');
+	var oslcRoute = oslcApp.route(env.context+'{*splat}');
 
 	// route any requests matching the LDP context (defaults to /r/*)
 	oslcRoute.all(function(req, res, next) {
@@ -129,7 +129,7 @@ var oslcRoutes = function(env) {
 
 				res.setHeader('ETag', eTag);
 				res.setHeader('Content-Type', serialize);
-				res.status(200).send(new Buffer(content));
+				res.status(200).send(Buffer.from(content));
 			});
 		});
 	});
