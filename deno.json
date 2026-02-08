@@ -1,0 +1,6 @@
+{
+  "nodeModulesDir": "manual",
+  "tasks": {
+    "test": "deno -A node_modules/.bin/jest --testPathPatterns='oslc-unit'"
+  }
+}
