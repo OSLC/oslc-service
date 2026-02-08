@@ -97,7 +97,7 @@ function createApp() {
     app.use(oslcService(env));
 
     // PUT: parse RDF body and store
-    app.put('/r/*', function(req, res) {
+    app.put('/r/{*splat}', function(req, res) {
         var contentType = req.get('Content-Type') || media.turtle;
         var doc = rdflib.graph();
         doc.uri = req.fullURL;
@@ -113,7 +113,7 @@ function createApp() {
     });
 
     // DELETE: remove from storage
-    app.delete('/r/*', function(req, res) {
+    app.delete('/r/{*splat}', function(req, res) {
         storage.remove(req.fullURL, function(status) {
             res.sendStatus(status);
         });
