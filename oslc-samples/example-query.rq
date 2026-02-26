@@ -1,4 +1,0 @@
-SELECT DISTINCT ?s ?p ?o 
-WHERE {GRAPH spc
- {?s ?p ?o }
-}

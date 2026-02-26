@@ -4,62 +4,63 @@
 [![Discourse status](https://img.shields.io/discourse/https/meta.discourse.org/status.svg)](https://forum.open-services.net/)
 [![Gitter](https://img.shields.io/gitter/room/nwjs/nw.js.svg)](https://gitter.im/OSLC/chat)
 
-A Node.js module providing Express middleware to create an [OSLC 3.0](https://tools.oasis-open.org/version-control/svn/oslc-core/trunk/specs/oslc-core.html) server. The service uses the ldp-service Express middleware module which provides a database of the user's choosing for persistence, jsonld.js for JSON-LD support, and a few other JavaScript libraries.  A sample app using the OSLC middleware service is running at [http://oslc-browser.mybluemix.net](http://oslc-browser.mybluemix.net).
+A Node.js module providing Express middleware to create an [OSLC 3.0](https://docs.oasis-open-projects.org/oslc-op/core/v3.0/oslc-core.html) server. It is built on the **ldp-service** Express middleware which implements the W3C Linked Data Platform protocol, providing a pluggable storage backend for persistence.
 
-oslc-service supports any OSLC Domain by including the domain vocabulary URIs at open-services.net/ns in the config.json file.
+oslc-service supports any OSLC domain by including the domain vocabulary URIs. It also exports the OSLC Core 3.0 vocabulary constants for use in OSLC applications.
 
 Many thanks to Steve Speicher and Sam Padgett for their valuable contribution to LDP and the LDP middleware upon which this service is built.
 
-Module planning, maintenance and issues can be see at at the [oslc-service](https://hub.jazz.net/project/jamsden/oslc-service/overview) IBM Bluemix DevOps Services project.
+## Architecture
 
+oslc-service is a thin wrapper over ldp-service that serves as the extension point for OSLC-specific behavior:
 
-## Using oslc-service
+- **ldp-service** -- Express middleware implementing W3C LDP (GET, HEAD, PUT, POST, DELETE for RDF resources and containers, content negotiation, ETag handling, Prefer headers, DirectContainer membership)
+- **oslc-service** -- Mounts ldp-service and exports OSLC vocabulary constants
+- **storage-service** -- Abstract storage interface; backends like ldp-service-jena provide persistence
 
-1) Install the required modules
+All LDP protocol operations (content negotiation, serialization, container management, membership patterns) are handled by ldp-service. oslc-service delegates to it and provides the OSLC vocabulary and a future extension point for OSLC-specific features such as service provider catalogs, resource shapes, and query capabilities.
 
-Install [Node.js](http://nodejs.org).
+## Usage
 
-Run your database. Below are instructions for using oslc-service with the Apache Jena Fuseki database.
+```typescript
+import express from 'express';
+import { oslcService } from 'oslc-service';
+import { JenaStorageService } from 'ldp-service-jena';
 
-Start [Jena](https://jena.apache.org/download/index.cgi). Download apache-jena-fuseki-2.4.1.tar.gz under Apache Jena Fuseki and unzip it.
+const app = express();
+const storage = new JenaStorageService();
 
-To run Jena, enter the following code
+await storage.init(env);
+app.use(oslcService(env, storage));
+```
 
-	$ fuseki-server --mem /ldp
+The `oslcService(env, storage)` function takes:
+- **env** (`OslcEnv`) -- Configuration extending `StorageEnv` with `appBase`, `context`, `jenaURL`, etc.
+- **storage** (`StorageService`) -- An initialized storage backend instance
 
-/ldp is a datastore that allows the request to access the resources on the db. It can be named in any other way. --mem allows for temporary storage of data
-for that instant. For the data to permantently store data (and to update data), the following code should be ran.
+It returns an Express application that can be mounted as middleware.
 
-	$ fuseki-server --update --loc=<path to db> /ldp
+## OSLC Vocabulary
 
---update allows the user to update resources, while --loc tells the location of the stored items for persistence.
+The `oslc` export provides OSLC Core 3.0 namespace constants:
 
-Install express.js and create a sample express app
+```typescript
+import { oslc } from 'oslc-service';
 
-	$ npm install express -g
-	$ express --git -e <appDir>
+oslc.ServiceProviderCatalog  // 'http://open-services.net/ns/core#ServiceProviderCatalog'
+oslc.ServiceProvider         // 'http://open-services.net/ns/core#ServiceProvider'
+oslc.CreationFactory         // 'http://open-services.net/ns/core#CreationFactory'
+oslc.QueryCapability         // 'http://open-services.net/ns/core#QueryCapability'
+oslc.resourceShape           // 'http://open-services.net/ns/core#resourceShape'
+// ... and many more
+```
 
-2) Edit the package.json file to add a dependency on ldp-service
+## Building
 
-	"dependencies": {"oslc-service": "~0.0.1"},
-
-3) Edit app.js and add whatever Express middleware you need including ldp-service. ldp-service can be customized to support any type of database (it is currently in production). For setting up ldp-service, we will use ldp-service-jena as an example. ldp-service-jena provides access to its Apache Jena database in case additional middleware needs direct access to the database. ldp-service-jena has not been published to npm yet, so it will need to be access locally.
-
-	var ldpService = require('./ldp-service-jena');
-	app.use(ldpService());
-	var db = ldpService.db; // incase further middleware needs access to the database
-
-4) Configuration defaults can be found in config.json. These may be overridden by variables in the environment, including Bluemix variables if deployed in a Bluemix app.
-
-5) To start the app, run these commands
-
-    $ npm install
-    $ node app.js
-
-Finally, point your browser to
-[http://localhost:3000/](http://localhost:3000/).
-
-To test the oslc-server, we recommend using a browser based REST client that sends requests to http://localhost:3000/. One example is Mozilla Firefox's [RESTClient](https://addons.mozilla.org/en-US/firefox/addon/restclient/).
+```bash
+npm run build    # Compile TypeScript
+npm run clean    # Remove dist/
+```
 
 ## License
 
@@ -74,5 +75,3 @@ distributed under the License is distributed on an "AS IS" BASIS,
 WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 See the License for the specific language governing permissions and
 limitations under the License.
-
-[![FOSSA Status](https://app.fossa.io/api/projects/git%2Bgithub.com%2FOSLC%2Foslc-service.svg?type=large)](https://app.fossa.io/projects/git%2Bgithub.com%2FOSLC%2Foslc-service?ref=badge_large)

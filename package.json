@@ -1,17 +1,36 @@
 {
   "name": "oslc-service",
-  "version": "1.0.0",
-  "description": "An Express middleware for OSLC 3.0 that supports any OSLC Domain",
+  "version": "2.0.0",
+  "description": "Express middleware for OSLC 3.0 that supports any OSLC Domain",
   "license": "Apache-2.0",
-  "main": "service.js",
+  "type": "module",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "exports": {
+    ".": {
+      "import": "./dist/index.js",
+      "types": "./dist/index.d.ts"
+    }
+  },
+  "scripts": {
+    "build": "tsc",
+    "clean": "rm -rf dist"
+  },
   "author": "Jim Amsden",
   "contributors": "Jim Ruehlin <jruehlin@us.ibm.com>",
   "dependencies": {
-    "express": "~4.16.4",
-    "rdflib": "^0.19.1"
+    "express": "^5.0.1",
+    "rdflib": "^2.2.35",
+    "storage-service": "*",
+    "ldp-service": "*"
+  },
+  "devDependencies": {
+    "typescript": "^5.7.0",
+    "@types/node": "^22.0.0",
+    "@types/express": "^5.0.0"
   },
   "engines": {
-    "node": "~10.6.0"
+    "node": "^22.11.0"
   },
   "repository": {
     "type": "git",
