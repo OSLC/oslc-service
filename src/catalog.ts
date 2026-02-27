@@ -50,6 +50,21 @@ export async function initCatalog(
   const turtleContent = readFileSync(env.templatePath!, 'utf-8');
   const template = parseTemplate(turtleContent);
 
+  // Ensure the root LDP container exists (needed when Fuseki dataset is empty)
+  let rootURI = env.appBase + context;
+  if (rootURI.endsWith('/')) rootURI = rootURI.slice(0, -1);
+  const { status: rootStatus } = await storage.read(rootURI);
+  if (rootStatus === 404) {
+    const root = new rdflib.IndexedFormula() as unknown as LdpDocument;
+    root.uri = rootURI;
+    const rootSym = root.sym(rootURI);
+    root.add(rootSym, RDF('type'), LDP('BasicContainer'));
+    root.add(rootSym, DCTERMS('title'), rdflib.lit('LDP Root Container'));
+    root.interactionModel = ldp.BasicContainer;
+    await storage.update(root);
+    console.log(`Created root LDP container at ${rootURI}`);
+  }
+
   // Create catalog if it doesn't exist
   const { status } = await storage.read(catalogURI);
   if (status === 404) {
