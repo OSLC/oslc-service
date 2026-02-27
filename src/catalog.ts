@@ -58,8 +58,8 @@ export async function initCatalog(
     const root = new rdflib.IndexedFormula() as unknown as LdpDocument;
     root.uri = rootURI;
     const rootSym = root.sym(rootURI);
-    root.add(rootSym, RDF('type'), LDP('BasicContainer'));
-    root.add(rootSym, DCTERMS('title'), rdflib.lit('LDP Root Container'));
+    root.add(rootSym, RDF('type'), LDP('BasicContainer'), rootSym);
+    root.add(rootSym, DCTERMS('title'), rdflib.lit('LDP Root Container'), rootSym);
     root.interactionModel = ldp.BasicContainer;
     await storage.update(root);
     console.log(`Created root LDP container at ${rootURI}`);
@@ -72,19 +72,19 @@ export async function initCatalog(
     catalog.uri = catalogURI;
     const sym = catalog.sym(catalogURI);
 
-    catalog.add(sym, RDF('type'), LDP('BasicContainer'));
-    catalog.add(sym, RDF('type'), OSLC('ServiceProviderCatalog'));
-    catalog.add(sym, DCTERMS('title'), rdflib.lit(template.catalogProps.title));
+    catalog.add(sym, RDF('type'), LDP('BasicContainer'), sym);
+    catalog.add(sym, RDF('type'), OSLC('ServiceProviderCatalog'), sym);
+    catalog.add(sym, DCTERMS('title'), rdflib.lit(template.catalogProps.title), sym);
     if (template.catalogProps.description) {
-      catalog.add(sym, DCTERMS('description'), rdflib.lit(template.catalogProps.description));
+      catalog.add(sym, DCTERMS('description'), rdflib.lit(template.catalogProps.description), sym);
     }
     if (template.catalogProps.publisherTitle) {
       const pub = rdflib.blankNode();
-      catalog.add(sym, DCTERMS('publisher'), pub);
-      catalog.add(pub, RDF('type'), OSLC('Publisher'));
-      catalog.add(pub, DCTERMS('title'), rdflib.lit(template.catalogProps.publisherTitle));
+      catalog.add(sym, DCTERMS('publisher'), pub, sym);
+      catalog.add(pub, RDF('type'), OSLC('Publisher'), sym);
+      catalog.add(pub, DCTERMS('title'), rdflib.lit(template.catalogProps.publisherTitle), sym);
       if (template.catalogProps.publisherIdentifier) {
-        catalog.add(pub, DCTERMS('identifier'), rdflib.lit(template.catalogProps.publisherIdentifier));
+        catalog.add(pub, DCTERMS('identifier'), rdflib.lit(template.catalogProps.publisherIdentifier), sym);
       }
     }
 
@@ -220,8 +220,8 @@ export function catalogPostHandler(
     const containerDoc = new rdflib.IndexedFormula() as unknown as LdpDocument;
     containerDoc.uri = containerURI;
     const containerSym = containerDoc.sym(containerURI);
-    containerDoc.add(containerSym, RDF('type'), LDP('BasicContainer'));
-    containerDoc.add(containerSym, DCTERMS('title'), rdflib.lit(title + ' Resources'));
+    containerDoc.add(containerSym, RDF('type'), LDP('BasicContainer'), containerSym);
+    containerDoc.add(containerSym, DCTERMS('title'), rdflib.lit(title + ' Resources'), containerSym);
     containerDoc.interactionModel = ldp.BasicContainer;
     await storage.update(containerDoc);
 
@@ -230,24 +230,24 @@ export function catalogPostHandler(
     spDoc.uri = spURI;
     const spSym = spDoc.sym(spURI);
 
-    spDoc.add(spSym, RDF('type'), OSLC('ServiceProvider'));
-    spDoc.add(spSym, DCTERMS('title'), rdflib.lit(title));
-    spDoc.add(spSym, OSLC('details'), spSym);
+    spDoc.add(spSym, RDF('type'), OSLC('ServiceProvider'), spSym);
+    spDoc.add(spSym, DCTERMS('title'), rdflib.lit(title), spSym);
+    spDoc.add(spSym, OSLC('details'), spSym, spSym);
 
     // Copy description from POST body if provided
     const descStmts = inputGraph.statementsMatching(undefined, DCTERMS('description'), undefined);
     if (descStmts.length > 0) {
-      spDoc.add(spSym, DCTERMS('description'), rdflib.lit(descStmts[0].object.value));
+      spDoc.add(spSym, DCTERMS('description'), rdflib.lit(descStmts[0].object.value), spSym);
     }
 
     // Add publisher from template
     if (state.template.catalogProps.publisherTitle) {
       const pub = rdflib.blankNode();
-      spDoc.add(spSym, DCTERMS('publisher'), pub);
-      spDoc.add(pub, RDF('type'), OSLC('Publisher'));
-      spDoc.add(pub, DCTERMS('title'), rdflib.lit(state.template.catalogProps.publisherTitle));
+      spDoc.add(spSym, DCTERMS('publisher'), pub, spSym);
+      spDoc.add(pub, RDF('type'), OSLC('Publisher'), spSym);
+      spDoc.add(pub, DCTERMS('title'), rdflib.lit(state.template.catalogProps.publisherTitle), spSym);
       if (state.template.catalogProps.publisherIdentifier) {
-        spDoc.add(pub, DCTERMS('identifier'), rdflib.lit(state.template.catalogProps.publisherIdentifier));
+        spDoc.add(pub, DCTERMS('identifier'), rdflib.lit(state.template.catalogProps.publisherIdentifier), spSym);
       }
     }
 
@@ -255,8 +255,8 @@ export function catalogPostHandler(
     for (const metaSP of state.template.metaServiceProviders) {
       for (const metaService of metaSP.services) {
         const serviceNode = rdflib.blankNode();
-        spDoc.add(spSym, OSLC('service'), serviceNode);
-        instantiateService(spDoc, serviceNode, metaService, env, containerURI);
+        spDoc.add(spSym, OSLC('service'), serviceNode, spSym);
+        instantiateService(spDoc, spSym, serviceNode, metaService, env, containerURI);
       }
     }
 
@@ -281,56 +281,57 @@ export function catalogPostHandler(
  */
 function instantiateService(
   doc: rdflib.IndexedFormula,
+  docNode: rdflib.NamedNode,
   serviceNode: rdflib.BlankNode,
   meta: MetaService,
   env: OslcEnv,
   containerURI: string
 ): void {
-  doc.add(serviceNode, RDF('type'), OSLC('Service'));
+  doc.add(serviceNode, RDF('type'), OSLC('Service'), docNode);
 
   for (const domain of meta.domains) {
-    doc.add(serviceNode, OSLC('domain'), rdflib.sym(domain));
+    doc.add(serviceNode, OSLC('domain'), rdflib.sym(domain), docNode);
   }
 
   // Creation factories
   for (const cf of meta.creationFactories) {
     const cfNode = rdflib.blankNode();
-    doc.add(serviceNode, OSLC('creationFactory'), cfNode);
-    doc.add(cfNode, RDF('type'), OSLC('CreationFactory'));
-    doc.add(cfNode, DCTERMS('title'), rdflib.lit(cf.title));
-    doc.add(cfNode, OSLC('creation'), rdflib.sym(containerURI));
+    doc.add(serviceNode, OSLC('creationFactory'), cfNode, docNode);
+    doc.add(cfNode, RDF('type'), OSLC('CreationFactory'), docNode);
+    doc.add(cfNode, DCTERMS('title'), rdflib.lit(cf.title), docNode);
+    doc.add(cfNode, OSLC('creation'), rdflib.sym(containerURI), docNode);
 
     for (const rt of cf.resourceTypes) {
-      doc.add(cfNode, OSLC('resourceType'), rdflib.sym(rt));
+      doc.add(cfNode, OSLC('resourceType'), rdflib.sym(rt), docNode);
     }
     for (const rs of cf.resourceShapes) {
       const shapeURI = resolveShapeURI(rs, env);
-      doc.add(cfNode, OSLC('resourceShape'), rdflib.sym(shapeURI));
+      doc.add(cfNode, OSLC('resourceShape'), rdflib.sym(shapeURI), docNode);
     }
   }
 
   // Creation dialogs
   for (const cd of meta.creationDialogs) {
     const cdNode = rdflib.blankNode();
-    doc.add(serviceNode, OSLC('creationDialog'), cdNode);
-    doc.add(cdNode, RDF('type'), OSLC('Dialog'));
-    doc.add(cdNode, DCTERMS('title'), rdflib.lit(cd.title));
-    doc.add(cdNode, OSLC('label'), rdflib.lit(cd.label));
-    doc.add(cdNode, OSLC('hintHeight'), rdflib.lit(cd.hintHeight));
-    doc.add(cdNode, OSLC('hintWidth'), rdflib.lit(cd.hintWidth));
+    doc.add(serviceNode, OSLC('creationDialog'), cdNode, docNode);
+    doc.add(cdNode, RDF('type'), OSLC('Dialog'), docNode);
+    doc.add(cdNode, DCTERMS('title'), rdflib.lit(cd.title), docNode);
+    doc.add(cdNode, OSLC('label'), rdflib.lit(cd.label), docNode);
+    doc.add(cdNode, OSLC('hintHeight'), rdflib.lit(cd.hintHeight), docNode);
+    doc.add(cdNode, OSLC('hintWidth'), rdflib.lit(cd.hintWidth), docNode);
 
     // Build the dialog URL with shape and creation params
     const shapeURI = cd.resourceShape ? resolveShapeURI(cd.resourceShape, env) : '';
     const dialogURL = env.appBase + '/dialog/create'
       + '?shape=' + encodeURIComponent(shapeURI)
       + '&creation=' + encodeURIComponent(containerURI);
-    doc.add(cdNode, OSLC('dialog'), rdflib.sym(dialogURL));
+    doc.add(cdNode, OSLC('dialog'), rdflib.sym(dialogURL), docNode);
 
     for (const rt of cd.resourceTypes) {
-      doc.add(cdNode, OSLC('resourceType'), rdflib.sym(rt));
+      doc.add(cdNode, OSLC('resourceType'), rdflib.sym(rt), docNode);
     }
     for (const u of cd.usage) {
-      doc.add(cdNode, OSLC('usage'), rdflib.sym(u));
+      doc.add(cdNode, OSLC('usage'), rdflib.sym(u), docNode);
     }
   }
 }
