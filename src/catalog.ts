@@ -104,6 +104,42 @@ export async function initCatalog(
 }
 
 /**
+ * Register query and import routes for a single ServiceProvider.
+ */
+function registerSPRoutes(
+  slug: string,
+  env: OslcEnv,
+  storage: StorageService,
+  state: CatalogState,
+  app: Express
+): void {
+  // Register query routes for each query capability
+  for (const metaSP of state.template.metaServiceProviders) {
+    for (const metaService of metaSP.services) {
+      for (const qc of metaService.queryCapabilities) {
+        const typeName = qc.resourceTypes.length > 0
+          ? qc.resourceTypes[0].replace(/.*[#/]/, '')
+          : 'resources';
+        const queryPath = state.catalogPath + '/' + encodeURIComponent(slug) + '/query/' + typeName;
+        app.get(queryPath, queryHandler(storage, qc.resourceTypes[0], env.appBase));
+      }
+    }
+  }
+
+  // Register import route for bulk-loading RDF data
+  const allResourceTypes: string[] = [];
+  for (const metaSP of state.template.metaServiceProviders) {
+    for (const metaService of metaSP.services) {
+      for (const qc of metaService.queryCapabilities) {
+        allResourceTypes.push(...qc.resourceTypes);
+      }
+    }
+  }
+  const importPath = state.catalogPath + '/' + encodeURIComponent(slug) + '/import';
+  app.put(importPath, importHandler(storage, allResourceTypes));
+}
+
+/**
  * Re-register query and import routes for existing ServiceProviders.
  * Called at startup so that routes survive server restarts.
  */
@@ -120,39 +156,9 @@ export async function recoverRoutes(
     .each(rdflib.sym(state.catalogURI), LDP('contains'), undefined)
     .map(n => n.value);
 
-  if (spURIs.length === 0) return;
-
-  // Collect all resource types from template query capabilities
-  const allResourceTypes: string[] = [];
-  for (const metaSP of state.template.metaServiceProviders) {
-    for (const metaService of metaSP.services) {
-      for (const qc of metaService.queryCapabilities) {
-        allResourceTypes.push(...qc.resourceTypes);
-      }
-    }
-  }
-
   for (const spURI of spURIs) {
-    // Derive the slug from the SP URI (last path segment)
     const slug = decodeURIComponent(spURI.replace(state.catalogURI + '/', ''));
-
-    // Register query routes
-    for (const metaSP of state.template.metaServiceProviders) {
-      for (const metaService of metaSP.services) {
-        for (const qc of metaService.queryCapabilities) {
-          const typeName = qc.resourceTypes.length > 0
-            ? qc.resourceTypes[0].replace(/.*[#/]/, '')
-            : 'resources';
-          const queryPath = state.catalogPath + '/' + encodeURIComponent(slug) + '/query/' + typeName;
-          app.get(queryPath, queryHandler(storage, qc.resourceTypes[0], env.appBase));
-        }
-      }
-    }
-
-    // Register import route
-    const importPath = state.catalogPath + '/' + encodeURIComponent(slug) + '/import';
-    app.put(importPath, importHandler(storage, allResourceTypes));
-
+    registerSPRoutes(slug, env, storage, state, app);
     console.log(`Recovered routes for ServiceProvider: ${spURI}`);
   }
 }
@@ -319,30 +325,8 @@ export function catalogPostHandler(
 
     await storage.update(spDoc);
 
-    // Register query routes for each query capability
-    for (const metaSP of state.template.metaServiceProviders) {
-      for (const metaService of metaSP.services) {
-        for (const qc of metaService.queryCapabilities) {
-          const typeName = qc.resourceTypes.length > 0
-            ? qc.resourceTypes[0].replace(/.*[#/]/, '')
-            : 'resources';
-          const queryPath = state.catalogPath + '/' + encodeURIComponent(slug) + '/query/' + typeName;
-          app.get(queryPath, queryHandler(storage, qc.resourceTypes[0], env.appBase));
-        }
-      }
-    }
-
-    // Register import route for bulk-loading RDF data
-    const allResourceTypes: string[] = [];
-    for (const metaSP of state.template.metaServiceProviders) {
-      for (const metaService of metaSP.services) {
-        for (const qc of metaService.queryCapabilities) {
-          allResourceTypes.push(...qc.resourceTypes);
-        }
-      }
-    }
-    const importPath = state.catalogPath + '/' + encodeURIComponent(slug) + '/import';
-    app.put(importPath, importHandler(storage, allResourceTypes));
+    // Register query and import routes for this ServiceProvider
+    registerSPRoutes(slug, env, storage, state, app);
 
     // Add ldp:contains triple to the catalog
     const containsData = new rdflib.IndexedFormula();
