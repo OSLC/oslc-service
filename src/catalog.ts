@@ -19,6 +19,7 @@ import {
   type MetaService,
 } from './template.js';
 import { queryHandler } from './query-handler.js';
+import { importHandler } from './import-handler.js';
 
 const RDF = rdflib.Namespace('http://www.w3.org/1999/02/22-rdf-syntax-ns#');
 const OSLC = rdflib.Namespace('http://open-services.net/ns/core#');
@@ -276,6 +277,18 @@ export function catalogPostHandler(
         }
       }
     }
+
+    // Register import route for bulk-loading RDF data
+    const allResourceTypes: string[] = [];
+    for (const metaSP of state.template.metaServiceProviders) {
+      for (const metaService of metaSP.services) {
+        for (const qc of metaService.queryCapabilities) {
+          allResourceTypes.push(...qc.resourceTypes);
+        }
+      }
+    }
+    const importPath = state.catalogPath + '/' + encodeURIComponent(slug) + '/import';
+    app.put(importPath, importHandler(storage, allResourceTypes));
 
     // Add ldp:contains triple to the catalog
     const containsData = new rdflib.IndexedFormula();
