@@ -124,6 +124,11 @@ async function storeResourceShapes(
       for (const cd of svc.creationDialogs) {
         if (cd.resourceShape) shapeRefs.add(cd.resourceShape);
       }
+      for (const qc of svc.queryCapabilities) {
+        for (const s of qc.resourceShapes) {
+          shapeRefs.add(s);
+        }
+      }
     }
   }
 
@@ -215,15 +220,10 @@ export function catalogPostHandler(
       return;
     }
 
-    // Create the resource BasicContainer
+    // containerURI is still used by creation factory oslc:creation URLs,
+    // but we no longer create a BasicContainer for it. Resources are
+    // discovered via OSLC QueryCapability, not container membership.
     const containerURI = spURI + '/resources';
-    const containerDoc = new rdflib.IndexedFormula() as unknown as LdpDocument;
-    containerDoc.uri = containerURI;
-    const containerSym = containerDoc.sym(containerURI);
-    containerDoc.add(containerSym, RDF('type'), LDP('BasicContainer'), containerSym);
-    containerDoc.add(containerSym, DCTERMS('title'), rdflib.lit(title + ' Resources'), containerSym);
-    containerDoc.interactionModel = ldp.BasicContainer;
-    await storage.update(containerDoc);
 
     // Build the ServiceProvider resource from the template
     const spDoc = new rdflib.IndexedFormula() as unknown as LdpDocument;
@@ -332,6 +332,29 @@ function instantiateService(
     }
     for (const u of cd.usage) {
       doc.add(cdNode, OSLC('usage'), rdflib.sym(u), docNode);
+    }
+  }
+
+  // Query capabilities
+  for (const qc of meta.queryCapabilities) {
+    const qcNode = rdflib.blankNode();
+    doc.add(serviceNode, OSLC('queryCapability'), qcNode, docNode);
+    doc.add(qcNode, RDF('type'), OSLC('QueryCapability'), docNode);
+    doc.add(qcNode, DCTERMS('title'), rdflib.lit(qc.title), docNode);
+
+    // Build the query base URL from the first resource type's local name
+    const typeName = qc.resourceTypes.length > 0
+      ? qc.resourceTypes[0].replace(/.*[#/]/, '')
+      : 'resources';
+    const queryBaseURL = containerURI.replace(/\/resources$/, '/query/' + typeName);
+    doc.add(qcNode, OSLC('queryBase'), rdflib.sym(queryBaseURL), docNode);
+
+    for (const rt of qc.resourceTypes) {
+      doc.add(qcNode, OSLC('resourceType'), rdflib.sym(rt), docNode);
+    }
+    for (const rs of qc.resourceShapes) {
+      const shapeURI = resolveShapeURI(rs, env);
+      doc.add(qcNode, OSLC('resourceShape'), rdflib.sym(shapeURI), docNode);
     }
   }
 }
