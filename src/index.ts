@@ -10,3 +10,4 @@ export {
   type MetaCreationDialog,
   type MetaQueryCapability,
 } from './template.js';
+export { queryHandler } from './query-handler.js';
