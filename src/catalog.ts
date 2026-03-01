@@ -121,7 +121,9 @@ function registerSPRoutes(
           ? qc.resourceTypes[0].replace(/.*[#/]/, '')
           : 'resources';
         const queryPath = state.catalogPath + '/' + encodeURIComponent(slug) + '/query/' + typeName;
-        app.get(queryPath, queryHandler(storage, qc.resourceTypes[0], env.appBase));
+        const handler = queryHandler(storage, qc.resourceTypes[0], env.appBase);
+        app.get(queryPath, handler);
+        app.post(queryPath, handler);
       }
     }
   }

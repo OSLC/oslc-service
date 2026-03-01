@@ -48,21 +48,36 @@ function serializeRdf(
 }
 
 /**
- * Extract OSLC query parameters from Express req.query.
+ * Extract OSLC query parameters from the request.
  *
- * Express 5 types req.query values as string | ParsedQs | ... but for
- * simple key=value parameters they arrive as strings. This helper
- * normalises them into the Record<string, string | undefined> that
- * parseOslcQuery expects.
+ * For GET requests, parameters come from the query string.
+ * For POST requests, parameters come from the form-encoded body,
+ * which allows clients to send readable, unescaped query values.
  */
-function extractParams(reqQuery: Request['query']): Record<string, string | undefined> {
+async function extractParams(req: Request): Promise<Record<string, string | undefined>> {
   const params: Record<string, string | undefined> = {};
-  for (const key of Object.keys(reqQuery)) {
-    const val = reqQuery[key];
-    if (typeof val === 'string') {
-      params[key] = val;
+
+  if (req.method === 'POST') {
+    // Read form-encoded body
+    let body = '';
+    req.setEncoding('utf8');
+    for await (const chunk of req) {
+      body += chunk;
+    }
+    const parsed = new URLSearchParams(body);
+    for (const [key, value] of parsed) {
+      params[key] = value;
+    }
+  } else {
+    // GET: extract from query string
+    for (const key of Object.keys(req.query)) {
+      const val = req.query[key];
+      if (typeof val === 'string') {
+        params[key] = val;
+      }
     }
   }
+
   return params;
 }
 
@@ -88,8 +103,8 @@ export function queryHandler(
 ): RequestHandler {
   return async (req: Request, res: Response): Promise<void> => {
     try {
-      // 1. Extract query parameters
-      const params = extractParams(req.query);
+      // 1. Extract query parameters (from query string for GET, body for POST)
+      const params = await extractParams(req);
 
       // 2. Parse OSLC query parameters into AST
       const oslcQuery = parseOslcQuery(params);
