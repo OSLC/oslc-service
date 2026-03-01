@@ -104,6 +104,60 @@ export async function initCatalog(
 }
 
 /**
+ * Re-register query and import routes for existing ServiceProviders.
+ * Called at startup so that routes survive server restarts.
+ */
+export async function recoverRoutes(
+  env: OslcEnv,
+  storage: StorageService,
+  state: CatalogState,
+  app: Express
+): Promise<void> {
+  const { status, document: catalog } = await storage.read(state.catalogURI);
+  if (status !== 200 || !catalog) return;
+
+  const spURIs = (catalog as unknown as rdflib.IndexedFormula)
+    .each(rdflib.sym(state.catalogURI), LDP('contains'), undefined)
+    .map(n => n.value);
+
+  if (spURIs.length === 0) return;
+
+  // Collect all resource types from template query capabilities
+  const allResourceTypes: string[] = [];
+  for (const metaSP of state.template.metaServiceProviders) {
+    for (const metaService of metaSP.services) {
+      for (const qc of metaService.queryCapabilities) {
+        allResourceTypes.push(...qc.resourceTypes);
+      }
+    }
+  }
+
+  for (const spURI of spURIs) {
+    // Derive the slug from the SP URI (last path segment)
+    const slug = decodeURIComponent(spURI.replace(state.catalogURI + '/', ''));
+
+    // Register query routes
+    for (const metaSP of state.template.metaServiceProviders) {
+      for (const metaService of metaSP.services) {
+        for (const qc of metaService.queryCapabilities) {
+          const typeName = qc.resourceTypes.length > 0
+            ? qc.resourceTypes[0].replace(/.*[#/]/, '')
+            : 'resources';
+          const queryPath = state.catalogPath + '/' + encodeURIComponent(slug) + '/query/' + typeName;
+          app.get(queryPath, queryHandler(storage, qc.resourceTypes[0], env.appBase));
+        }
+      }
+    }
+
+    // Register import route
+    const importPath = state.catalogPath + '/' + encodeURIComponent(slug) + '/import';
+    app.put(importPath, importHandler(storage, allResourceTypes));
+
+    console.log(`Recovered routes for ServiceProvider: ${spURI}`);
+  }
+}
+
+/**
  * Store ResourceShape .ttl files from the config/shapes/ directory.
  * Shapes are stored at URIs under {appBase}/shapes/{name}.
  */

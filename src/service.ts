@@ -24,7 +24,7 @@
 import express from 'express';
 import { type StorageService, type StorageEnv } from 'storage-service';
 import { ldpService } from 'ldp-service';
-import { initCatalog, catalogPostHandler, type CatalogState } from './catalog.js';
+import { initCatalog, catalogPostHandler, recoverRoutes, type CatalogState } from './catalog.js';
 import { dialogCreateHandler } from './dialog.js';
 import { compactHandler } from './compact.js';
 
@@ -56,6 +56,9 @@ export async function oslcService(
 
     // Intercept POST to catalog — must be mounted before ldp-service
     app.post(catalogState.catalogPath, catalogPostHandler(env, storage, catalogState, app));
+
+    // Re-register query and import routes for existing ServiceProviders
+    await recoverRoutes(env, storage, catalogState, app);
   }
 
   // Creation dialog route
