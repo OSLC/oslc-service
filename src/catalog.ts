@@ -166,59 +166,81 @@ export async function recoverRoutes(
 }
 
 /**
- * Store ResourceShape .ttl files from the config/shapes/ directory.
- * Shapes are stored at URIs under {appBase}/shapes/{name}.
+ * Store ResourceShape documents referenced by the template.
+ *
+ * Shape references may include fragment identifiers (e.g.,
+ * urn:oslc:template/shapes/MRMS-Shapes#ProgramShape).
+ * We strip fragments to get unique document URIs, then load each
+ * document file once and store it as a single resource.
+ *
+ * External HTTP URIs are skipped (assumed published elsewhere).
  */
 async function storeResourceShapes(
   env: OslcEnv,
   storage: StorageService,
   template: CatalogTemplate
 ): Promise<void> {
-  const shapesDir = join(dirname(env.templatePath!), 'shapes');
+  const configDir = dirname(env.templatePath!);
 
-  // Collect all unique shape URIs from the template
+  // Collect all unique shape refs from the template
   const shapeRefs = new Set<string>();
   for (const sp of template.metaServiceProviders) {
     for (const svc of sp.services) {
       for (const cf of svc.creationFactories) {
-        for (const s of cf.resourceShapes) {
-          shapeRefs.add(s);
-        }
+        for (const s of cf.resourceShapes) shapeRefs.add(s);
       }
       for (const cd of svc.creationDialogs) {
         if (cd.resourceShape) shapeRefs.add(cd.resourceShape);
       }
       for (const qc of svc.queryCapabilities) {
-        for (const s of qc.resourceShapes) {
-          shapeRefs.add(s);
-        }
+        for (const s of qc.resourceShapes) shapeRefs.add(s);
       }
     }
   }
 
-  for (const shapeRef of shapeRefs) {
-    // Template shape refs use urn:oslc:template/ base, so extract the relative path
-    const relativePath = shapeRef.replace('urn:oslc:template/', '');
-    const shapeURI = env.appBase + '/' + relativePath;
+  // Strip fragments to get unique document URIs
+  const docURIs = new Set<string>();
+  for (const ref of shapeRefs) {
+    const hashIdx = ref.indexOf('#');
+    docURIs.add(hashIdx >= 0 ? ref.slice(0, hashIdx) : ref);
+  }
 
-    const { status } = await storage.read(shapeURI);
+  for (const docRef of docURIs) {
+    // Skip external HTTP URIs — they're published elsewhere
+    if (!docRef.startsWith('urn:oslc:template/')) continue;
+
+    const relativePath = docRef.replace('urn:oslc:template/', '');
+    const docURI = env.appBase + '/' + relativePath;
+
+    const { status } = await storage.read(docURI);
     if (status === 200) continue; // already stored
 
-    // Try to read the .ttl file from disk
-    const filePath = join(shapesDir, relativePath.replace('shapes/', '') + '.ttl');
-    let turtleContent: string;
-    try {
-      turtleContent = readFileSync(filePath, 'utf-8');
-    } catch {
-      console.warn(`ResourceShape file not found: ${filePath}`);
+    // Try to find the .ttl file on disk
+    const candidates = [
+      join(configDir, relativePath + '.ttl'),
+      join(configDir, 'shapes', relativePath.replace('shapes/', '') + '.ttl'),
+    ];
+
+    let turtleContent: string | null = null;
+    for (const filePath of candidates) {
+      try {
+        turtleContent = readFileSync(filePath, 'utf-8');
+        break;
+      } catch {
+        // try next candidate
+      }
+    }
+
+    if (!turtleContent) {
+      console.warn(`ResourceShape file not found for ${docRef}. Tried: ${candidates.join(', ')}`);
       continue;
     }
 
     const shapeDoc = new rdflib.IndexedFormula() as unknown as LdpDocument;
-    shapeDoc.uri = shapeURI;
-    rdflib.parse(turtleContent, shapeDoc, shapeURI, 'text/turtle');
+    shapeDoc.uri = docURI;
+    rdflib.parse(turtleContent, shapeDoc, docURI, 'text/turtle');
     await storage.update(shapeDoc);
-    console.log(`Stored ResourceShape at ${shapeURI}`);
+    console.log(`Stored ResourceShape document at ${docURI}`);
   }
 }
 
