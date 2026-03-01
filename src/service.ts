@@ -55,7 +55,7 @@ export async function oslcService(
     catalogState = await initCatalog(env, storage);
 
     // Intercept POST to catalog — must be mounted before ldp-service
-    app.post(catalogState.catalogPath, catalogPostHandler(env, storage, catalogState));
+    app.post(catalogState.catalogPath, catalogPostHandler(env, storage, catalogState, app));
   }
 
   // Creation dialog route

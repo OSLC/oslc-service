@@ -6,7 +6,7 @@
 import { readFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import * as rdflib from 'rdflib';
-import type { Request, Response, RequestHandler } from 'express';
+import type { Request, Response, RequestHandler, Express } from 'express';
 import {
   type StorageService,
   type LdpDocument,
@@ -18,6 +18,7 @@ import {
   type CatalogTemplate,
   type MetaService,
 } from './template.js';
+import { queryHandler } from './query-handler.js';
 
 const RDF = rdflib.Namespace('http://www.w3.org/1999/02/22-rdf-syntax-ns#');
 const OSLC = rdflib.Namespace('http://open-services.net/ns/core#');
@@ -177,7 +178,8 @@ function slugify(text: string): string {
 export function catalogPostHandler(
   env: OslcEnv,
   storage: StorageService,
-  state: CatalogState
+  state: CatalogState,
+  app: Express
 ): RequestHandler {
   return async (req: Request, res: Response): Promise<void> => {
     // Read the raw body
@@ -261,6 +263,19 @@ export function catalogPostHandler(
     }
 
     await storage.update(spDoc);
+
+    // Register query routes for each query capability
+    for (const metaSP of state.template.metaServiceProviders) {
+      for (const metaService of metaSP.services) {
+        for (const qc of metaService.queryCapabilities) {
+          const typeName = qc.resourceTypes.length > 0
+            ? qc.resourceTypes[0].replace(/.*[#/]/, '')
+            : 'resources';
+          const queryPath = state.catalogPath + '/' + encodeURIComponent(slug) + '/query/' + typeName;
+          app.get(queryPath, queryHandler(storage, qc.resourceTypes[0], env.appBase));
+        }
+      }
+    }
 
     // Add ldp:contains triple to the catalog
     const containsData = new rdflib.IndexedFormula();
