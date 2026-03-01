@@ -51,14 +51,23 @@ function serializeRdf(
  * Extract OSLC query parameters from the request.
  *
  * For GET requests, parameters come from the query string.
- * For POST requests, parameters come from the form-encoded body,
- * which allows clients to send readable, unescaped query values.
+ * For POST requests, parameters are merged from the query string
+ * and the form-encoded body (body values take precedence).
+ * This allows oslc.prefix on the URL and readable query params in the body.
  */
 async function extractParams(req: Request): Promise<Record<string, string | undefined>> {
   const params: Record<string, string | undefined> = {};
 
+  // Always extract query string parameters
+  for (const key of Object.keys(req.query)) {
+    const val = req.query[key];
+    if (typeof val === 'string') {
+      params[key] = val;
+    }
+  }
+
+  // For POST, merge form-encoded body (body wins on conflict)
   if (req.method === 'POST') {
-    // Read form-encoded body
     let body = '';
     req.setEncoding('utf8');
     for await (const chunk of req) {
@@ -67,14 +76,6 @@ async function extractParams(req: Request): Promise<Record<string, string | unde
     const parsed = new URLSearchParams(body);
     for (const [key, value] of parsed) {
       params[key] = value;
-    }
-  } else {
-    // GET: extract from query string
-    for (const key of Object.keys(req.query)) {
-      const val = req.query[key];
-      if (typeof val === 'string') {
-        params[key] = val;
-      }
     }
   }
 
