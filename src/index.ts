@@ -8,4 +8,5 @@ export {
   type MetaService,
   type MetaCreationFactory,
   type MetaCreationDialog,
+  type MetaQueryCapability,
 } from './template.js';

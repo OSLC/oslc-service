@@ -38,11 +38,19 @@ export interface MetaCreationDialog {
   resourceShape?: string;
 }
 
+/** A query capability defined in the meta template. */
+export interface MetaQueryCapability {
+  title: string;
+  resourceTypes: string[];
+  resourceShapes: string[];
+}
+
 /** A service defined in the meta template. */
 export interface MetaService {
   domains: string[];
   creationFactories: MetaCreationFactory[];
   creationDialogs: MetaCreationDialog[];
+  queryCapabilities: MetaQueryCapability[];
 }
 
 /** A meta service provider defined in the template. */
@@ -115,7 +123,12 @@ function extractMetaService(graph: rdflib.IndexedFormula, serviceNode: rdflib.Na
     creationDialogs.push(extractCreationDialog(graph, cdNode as rdflib.NamedNode));
   }
 
-  return { domains, creationFactories, creationDialogs };
+  const queryCapabilities: MetaQueryCapability[] = [];
+  for (const qcNode of graph.each(serviceNode, OSLC('queryCapability'), undefined)) {
+    queryCapabilities.push(extractQueryCapability(graph, qcNode as rdflib.NamedNode));
+  }
+
+  return { domains, creationFactories, creationDialogs, queryCapabilities };
 }
 
 function extractCreationFactory(graph: rdflib.IndexedFormula, node: rdflib.NamedNode): MetaCreationFactory {
@@ -135,4 +148,11 @@ function extractCreationDialog(graph: rdflib.IndexedFormula, node: rdflib.NamedN
   const shapeNode = graph.any(node, OSLC('resourceShape'));
   const resourceShape = shapeNode?.value;
   return { title, label, resourceTypes, hintHeight, hintWidth, usage, resourceShape };
+}
+
+function extractQueryCapability(graph: rdflib.IndexedFormula, node: rdflib.NamedNode): MetaQueryCapability {
+  const title = graph.anyValue(node, DCTERMS('title')) ?? 'Query Capability';
+  const resourceTypes = graph.each(node, OSLC('resourceType'), undefined).map(n => n.value);
+  const resourceShapes = graph.each(node, OSLC('resourceShape'), undefined).map(n => n.value);
+  return { title, resourceTypes, resourceShapes };
 }
