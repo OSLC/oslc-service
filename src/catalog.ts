@@ -6,7 +6,7 @@
 import { readFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import * as rdflib from 'rdflib';
-import type { Request, Response, RequestHandler, Express } from 'express';
+import type { Request, Response, RequestHandler, Router } from 'express';
 import {
   type StorageService,
   type LdpDocument,
@@ -111,7 +111,7 @@ function registerSPRoutes(
   env: OslcEnv,
   storage: StorageService,
   state: CatalogState,
-  app: Express
+  router: Router
 ): void {
   // Register query routes for each query capability
   for (const metaSP of state.template.metaServiceProviders) {
@@ -122,8 +122,8 @@ function registerSPRoutes(
           : 'resources';
         const queryPath = state.catalogPath + '/' + encodeURIComponent(slug) + '/query/' + typeName;
         const handler = queryHandler(storage, qc.resourceTypes[0], env.appBase);
-        app.get(queryPath, handler);
-        app.post(queryPath, handler);
+        router.get(queryPath, handler);
+        router.post(queryPath, handler);
       }
     }
   }
@@ -138,7 +138,7 @@ function registerSPRoutes(
     }
   }
   const importPath = state.catalogPath + '/' + encodeURIComponent(slug) + '/import';
-  app.put(importPath, importHandler(storage, allResourceTypes));
+  router.put(importPath, importHandler(storage, allResourceTypes));
 }
 
 /**
@@ -149,7 +149,7 @@ export async function recoverRoutes(
   env: OslcEnv,
   storage: StorageService,
   state: CatalogState,
-  app: Express
+  router: Router
 ): Promise<void> {
   const { status, document: catalog } = await storage.read(state.catalogURI);
   if (status !== 200 || !catalog) return;
@@ -160,7 +160,7 @@ export async function recoverRoutes(
 
   for (const spURI of spURIs) {
     const slug = decodeURIComponent(spURI.replace(state.catalogURI + '/', ''));
-    registerSPRoutes(slug, env, storage, state, app);
+    registerSPRoutes(slug, env, storage, state, router);
     console.log(`Recovered routes for ServiceProvider: ${spURI}`);
   }
 }
@@ -264,7 +264,7 @@ export function catalogPostHandler(
   env: OslcEnv,
   storage: StorageService,
   state: CatalogState,
-  app: Express
+  router: Router
 ): RequestHandler {
   return async (req: Request, res: Response): Promise<void> => {
     // Read the raw body
@@ -350,7 +350,7 @@ export function catalogPostHandler(
     await storage.update(spDoc);
 
     // Register query and import routes for this ServiceProvider
-    registerSPRoutes(slug, env, storage, state, app);
+    registerSPRoutes(slug, env, storage, state, router);
 
     // Add ldp:contains triple to the catalog
     const containsData = new rdflib.IndexedFormula();

@@ -49,16 +49,21 @@ export async function oslcService(
 ): Promise<express.Express> {
   const app = express();
 
+  // Router for dynamically registered query and import routes.
+  // Mounted before ldp-service so routes added at runtime (when creating
+  // ServiceProviders) are matched before the ldp-service catch-all.
+  const dynamicRouter = express.Router();
+
   // Initialize catalog from template if configured
   let catalogState: CatalogState | undefined;
   if (env.templatePath) {
     catalogState = await initCatalog(env, storage);
 
     // Intercept POST to catalog — must be mounted before ldp-service
-    app.post(catalogState.catalogPath, catalogPostHandler(env, storage, catalogState, app));
+    app.post(catalogState.catalogPath, catalogPostHandler(env, storage, catalogState, dynamicRouter));
 
     // Re-register query and import routes for existing ServiceProviders
-    await recoverRoutes(env, storage, catalogState, app);
+    await recoverRoutes(env, storage, catalogState, dynamicRouter);
   }
 
   // Creation dialog route
@@ -66,6 +71,9 @@ export async function oslcService(
 
   // Resource preview (Compact) route
   app.get('/compact', compactHandler(env, storage));
+
+  // Mount dynamic router before ldp-service
+  app.use(dynamicRouter);
 
   // Delegate all LDP operations to ldp-service
   app.use(ldpService(env, storage));
