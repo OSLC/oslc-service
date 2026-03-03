@@ -27,6 +27,7 @@ import { ldpService } from 'ldp-service';
 import { initCatalog, catalogPostHandler, recoverRoutes, type CatalogState } from './catalog.js';
 import { dialogCreateHandler } from './dialog.js';
 import { compactHandler } from './compact.js';
+import { sparqlHandler } from './sparql-handler.js';
 
 export interface OslcEnv extends StorageEnv {
   context?: string;
@@ -71,6 +72,13 @@ export async function oslcService(
 
   // Resource preview (Compact) route
   app.get('/compact', compactHandler(env, storage));
+
+  // SPARQL endpoint — only if storage backend supports it
+  if (storage.sparqlQuery) {
+    const sparqlPath = (env.context ?? '/') + 'sparql';
+    app.get(sparqlPath, sparqlHandler(storage));
+    app.post(sparqlPath, sparqlHandler(storage));
+  }
 
   // Mount dynamic router before ldp-service
   app.use(dynamicRouter);
