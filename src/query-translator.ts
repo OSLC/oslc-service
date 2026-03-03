@@ -416,7 +416,7 @@ function buildOrderBy(
  */
 export function toSPARQL(
   query: OslcQuery,
-  resourceType: string,
+  resourceType?: string,
   defaultPrefixes?: PrefixMap,
 ): string {
   // Merge prefixes: query-declared override defaults override well-known
@@ -467,18 +467,20 @@ export function toSPARQL(
  */
 function buildSelectedPropertiesQuery(
   query: OslcQuery,
-  resourceType: string,
+  resourceType: string | undefined,
   ctx: TranslationContext,
 ): string {
   const rdfType = '<http://www.w3.org/1999/02/22-rdf-syntax-ns#type>';
-  const typeUri = resourceType.startsWith('<') ? resourceType : `<${resourceType}>`;
-  const typeTriple = `?s ${rdfType} ${typeUri} .`;
 
-  // Always include the type triple in CONSTRUCT
-  ctx.constructPatterns.push(typeTriple);
-
-  // WHERE starts with the type constraint
-  ctx.wherePatterns.push(typeTriple);
+  if (resourceType) {
+    const typeUri = resourceType.startsWith('<') ? resourceType : `<${resourceType}>`;
+    const typeTriple = `?s ${rdfType} ${typeUri} .`;
+    ctx.constructPatterns.push(typeTriple);
+    ctx.wherePatterns.push(typeTriple);
+  } else if (!query.where && (!query.searchTerms || query.searchTerms.length === 0)) {
+    // No type, no where, no search — require rdf:type to bind ?s to typed resources
+    ctx.wherePatterns.push(`?s ${rdfType} ?_type0 .`);
+  }
 
   // Translate where clause
   if (query.where) {
@@ -535,15 +537,21 @@ function buildSelectedPropertiesQuery(
  */
 function buildFullRepresentationQuery(
   query: OslcQuery,
-  resourceType: string,
+  resourceType: string | undefined,
   ctx: TranslationContext,
 ): string {
   const rdfType = '<http://www.w3.org/1999/02/22-rdf-syntax-ns#type>';
-  const typeUri = resourceType.startsWith('<') ? resourceType : `<${resourceType}>`;
-  const typeTriple = `?s ${rdfType} ${typeUri} .`;
 
   // Subquery WHERE patterns
-  const subWherePatterns: string[] = [typeTriple];
+  const subWherePatterns: string[] = [];
+
+  if (resourceType) {
+    const typeUri = resourceType.startsWith('<') ? resourceType : `<${resourceType}>`;
+    subWherePatterns.push(`?s ${rdfType} ${typeUri} .`);
+  } else if (!query.where && (!query.searchTerms || query.searchTerms.length === 0)) {
+    // No type, no where, no search — require rdf:type to bind ?s to typed resources
+    subWherePatterns.push(`?s ${rdfType} ?_type0 .`);
+  }
 
   // Translate where clause into subquery patterns
   if (query.where) {

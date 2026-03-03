@@ -113,20 +113,12 @@ function registerSPRoutes(
   state: CatalogState,
   router: Router
 ): void {
-  // Register query routes for each query capability
-  for (const metaSP of state.template.metaServiceProviders) {
-    for (const metaService of metaSP.services) {
-      for (const qc of metaService.queryCapabilities) {
-        const typeName = qc.resourceTypes.length > 0
-          ? qc.resourceTypes[0].replace(/.*[#/]/, '')
-          : 'resources';
-        const queryPath = state.catalogPath + '/' + encodeURIComponent(slug) + '/query/' + typeName;
-        const handler = queryHandler(storage, qc.resourceTypes[0], env.appBase);
-        router.get(queryPath, handler);
-        router.post(queryPath, handler);
-      }
-    }
-  }
+  // Register a single query route for all query capabilities (type-agnostic).
+  // Clients filter by type via oslc.where when desired.
+  const queryPath = state.catalogPath + '/' + encodeURIComponent(slug) + '/query';
+  const qHandler = queryHandler(storage, undefined, env.appBase);
+  router.get(queryPath, qHandler);
+  router.post(queryPath, qHandler);
 
   // Register import route for bulk-loading RDF data
   const allResourceTypes: string[] = [];
@@ -432,11 +424,8 @@ function instantiateService(
     doc.add(qcNode, RDF('type'), OSLC('QueryCapability'), docNode);
     doc.add(qcNode, DCTERMS('title'), rdflib.lit(qc.title), docNode);
 
-    // Build the query base URL from the first resource type's local name
-    const typeName = qc.resourceTypes.length > 0
-      ? qc.resourceTypes[0].replace(/.*[#/]/, '')
-      : 'resources';
-    const queryBaseURL = containerURI.replace(/\/resources$/, '/query/' + typeName);
+    // All query capabilities share the same queryBase URL
+    const queryBaseURL = containerURI.replace(/\/resources$/, '/query');
     doc.add(qcNode, OSLC('queryBase'), rdflib.sym(queryBaseURL), docNode);
 
     for (const rt of qc.resourceTypes) {

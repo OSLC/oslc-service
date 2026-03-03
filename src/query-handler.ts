@@ -99,7 +99,7 @@ async function extractParams(req: Request): Promise<Record<string, string | unde
  */
 export function queryHandler(
   storage: StorageService,
-  resourceType: string,
+  resourceType: string | undefined,
   appBase: string
 ): RequestHandler {
   return async (req: Request, res: Response): Promise<void> => {
