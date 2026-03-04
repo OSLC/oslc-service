@@ -22,13 +22,14 @@
 
 import type { Request, Response, RequestHandler } from 'express';
 import * as rdflib from 'rdflib';
-import type { StorageService } from 'storage-service';
+import { type StorageService, ldp } from 'storage-service';
 import { parseOslcQuery } from './query-parser.js';
 import { toSPARQL } from './query-translator.js';
 import { oslc } from './vocab/oslc.js';
 
 const DCTERMS = rdflib.Namespace('http://purl.org/dc/terms/');
 const RDF = rdflib.Namespace('http://www.w3.org/1999/02/22-rdf-syntax-ns#');
+const LDP = rdflib.Namespace(ldp.ns);
 
 /**
  * Promisify rdflib.serialize.
@@ -120,27 +121,38 @@ export function queryHandler(
         return;
       }
 
-      // 5. Add oslc:ResponseInfo triples for paged results
+      // 5. Wrap results in an LDP BasicContainer per OSLC Query 3.0
+      //    [query-11] Container subject is the queryBase URI.
+      //    [query-12] LDPC with Link header.
+      //    [query-13] ldp:contains references each result member.
+      const queryBaseURI = appBase + req.originalUrl.split('?')[0];
+      const containerNode = rdflib.sym(queryBaseURI);
+      const graphNode = rdflib.sym(queryBaseURI);
+
+      results.add(containerNode, RDF('type'), LDP('BasicContainer'), graphNode);
+
+      // Collect distinct member subjects from the CONSTRUCT results
+      const memberURIs = new Set<string>();
+      for (const st of results.statements) {
+        if (st.subject.termType === 'NamedNode' && st.subject.value !== queryBaseURI) {
+          memberURIs.add(st.subject.value);
+        }
+      }
+
+      // Add ldp:contains for each member
+      for (const memberURI of memberURIs) {
+        results.add(containerNode, LDP('contains'), rdflib.sym(memberURI), graphNode);
+      }
+
+      // 6. Add oslc:ResponseInfo triples for paged results
       if (oslcQuery.pageSize !== undefined) {
         const currentPage = oslcQuery.page ?? 1;
         const requestPath = req.originalUrl.split('?')[0];
         const responseInfoURI = appBase + req.originalUrl;
         const responseInfoNode = rdflib.sym(responseInfoURI);
-        const graphNode = rdflib.sym(responseInfoURI);
 
-        results.add(
-          responseInfoNode,
-          RDF('type'),
-          rdflib.sym(oslc.ResponseInfo),
-          graphNode
-        );
-
-        results.add(
-          responseInfoNode,
-          DCTERMS('title'),
-          rdflib.lit('Query Results'),
-          graphNode
-        );
+        results.add(responseInfoNode, RDF('type'), rdflib.sym(oslc.ResponseInfo), graphNode);
+        results.add(responseInfoNode, DCTERMS('title'), rdflib.lit('Query Results'), graphNode);
 
         // Build the next page URL preserving existing query params
         const nextPage = currentPage + 1;
@@ -161,7 +173,7 @@ export function queryHandler(
         );
       }
 
-      // 6. Content negotiation
+      // 7. Content negotiation
       const accepted = req.accepts([
         'text/turtle',
         'application/ld+json',
@@ -174,9 +186,12 @@ export function queryHandler(
 
       const contentType = accepted as string;
 
-      // 7. Serialize and send response
+      // 8. Serialize and send response with LDP Link headers
       const body = await serializeRdf(null, results, appBase, contentType);
-      res.status(200).set('Content-Type', contentType).send(body);
+      res.status(200)
+        .set('Content-Type', contentType)
+        .set('Link', `<${ldp.BasicContainer}>; rel="type", <${ldp.Resource}>; rel="type"`)
+        .send(body);
     } catch (err: unknown) {
       // Parse or translation errors return 400
       const message = err instanceof Error ? err.message : String(err);

@@ -28,6 +28,7 @@ import { initCatalog, catalogPostHandler, recoverRoutes, type CatalogState } fro
 import { dialogCreateHandler } from './dialog.js';
 import { compactHandler } from './compact.js';
 import { sparqlHandler } from './sparql-handler.js';
+import { resourceHandler } from './resource-handler.js';
 
 export interface OslcEnv extends StorageEnv {
   context?: string;
@@ -49,6 +50,25 @@ export async function oslcService(
   storage: StorageService
 ): Promise<express.Express> {
   const app = express();
+
+  // CORS headers for browser-based clients — covers all OSLC routes
+  // (query, SPARQL, dialog, compact, catalog) that are mounted before ldp-service.
+  app.use((req, res, next) => {
+    const origin = req.get('Origin');
+    if (origin) {
+      res.set('Access-Control-Allow-Origin', origin);
+      res.set('Access-Control-Allow-Credentials', 'true');
+    }
+    res.set('Access-Control-Allow-Methods', 'GET, HEAD, POST, PUT, DELETE, OPTIONS');
+    res.set('Access-Control-Allow-Headers', 'Content-Type, Accept, OSLC-Core-Version, If-Match, If-None-Match, Slug');
+    res.set('Access-Control-Expose-Headers', 'ETag, Link, Location, Content-Type, Accept-Post, Allow');
+
+    if (req.method === 'OPTIONS' && req.get('Access-Control-Request-Method')) {
+      res.sendStatus(204);
+      return;
+    }
+    next();
+  });
 
   // Router for dynamically registered query and import routes.
   // Mounted before ldp-service so routes added at runtime (when creating
@@ -72,6 +92,10 @@ export async function oslcService(
 
   // Resource preview (Compact) route
   app.get('/compact', compactHandler(env, storage));
+
+  // Resource lookup — resolves any stored resource by URI
+  const resourcePath = (env.context ?? '/') + 'resource';
+  app.get(resourcePath, resourceHandler(storage));
 
   // SPARQL endpoint — only if storage backend supports it
   if (storage.sparqlQuery) {

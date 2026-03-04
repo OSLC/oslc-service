@@ -15,3 +15,4 @@ export { toSPARQL } from './query-translator.js';
 export { queryHandler } from './query-handler.js';
 export { importHandler } from './import-handler.js';
 export { sparqlHandler } from './sparql-handler.js';
+export { resourceHandler } from './resource-handler.js';
