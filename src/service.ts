@@ -21,7 +21,8 @@
  * operations to ldp-service.
  */
 
-import express from 'express';
+import express, { type Request, type Response, type NextFunction } from 'express';
+import { Readable } from 'node:stream';
 import { type StorageService, type StorageEnv } from 'storage-service';
 import { ldpService } from 'ldp-service';
 import { initCatalog, catalogPostHandler, recoverRoutes, type CatalogState } from './catalog.js';
@@ -107,8 +108,92 @@ export async function oslcService(
   // Mount dynamic router before ldp-service
   app.use(dynamicRouter);
 
+  // Inject server-generated OSLC properties into POST/PUT request bodies
+  // before ldp-service processes them. This keeps OSLC domain knowledge
+  // out of the generic LDP layer.
+  app.use(oslcPropertyInjector(env));
+
   // Delegate all LDP operations to ldp-service
   app.use(ldpService(env, storage));
 
   return app;
+}
+
+/**
+ * Express middleware that injects server-generated OSLC properties
+ * (dcterms:created, dcterms:creator, oslc:serviceProvider) into POST
+ * and PUT request bodies before ldp-service parses them.
+ *
+ * Reads the raw body, appends Turtle triples (only if missing), and
+ * replaces the request stream so ldp-service sees the augmented body.
+ */
+function oslcPropertyInjector(env: OslcEnv) {
+  return (req: Request, res: Response, next: NextFunction): void => {
+    if (req.method !== 'POST' && req.method !== 'PUT') {
+      next();
+      return;
+    }
+
+    const contentType = req.get('Content-Type') ?? '';
+    if (!contentType.includes('text/turtle') && !contentType.includes('application/ld+json')) {
+      next();
+      return;
+    }
+
+    // Buffer the request body
+    let body = '';
+    req.setEncoding('utf8');
+    req.on('data', (chunk: string) => { body += chunk; });
+    req.on('end', () => {
+      // Build extra Turtle triples for missing OSLC properties.
+      // Use <> as subject — ldp-service resolves it to the resource URI.
+      const extraTriples: string[] = [];
+
+      if (!body.includes('dcterms:created') && !body.includes('http://purl.org/dc/terms/created')) {
+        extraTriples.push(
+          `<> <http://purl.org/dc/terms/created> "${new Date().toISOString()}"^^<http://www.w3.org/2001/XMLSchema#dateTime> .`
+        );
+      }
+
+      if (!body.includes('dcterms:creator') && !body.includes('http://purl.org/dc/terms/creator')) {
+        const creator = (req as any).user?.username ?? req.get('X-Forwarded-User') ?? 'anonymous';
+        extraTriples.push(
+          `<> <http://purl.org/dc/terms/creator> "${creator}" .`
+        );
+      }
+
+      if (!body.includes('oslc:serviceProvider') && !body.includes('http://open-services.net/ns/core#serviceProvider')) {
+        // Derive service provider URI from the request URL pattern:
+        // {appBase}/oslc/{sp-slug}/resources → SP is {appBase}/oslc/{sp-slug}
+        const fullURL = `${req.protocol}://${req.get('host')}${req.originalUrl}`;
+        const containerPath = fullURL.replace(env.appBase, '');
+        const segments = containerPath.split('/').filter(Boolean);
+        if (segments.length >= 2) {
+          const spURI = env.appBase + '/' + segments.slice(0, 2).join('/');
+          extraTriples.push(
+            `<> <http://open-services.net/ns/core#serviceProvider> <${spURI}> .`
+          );
+        }
+      }
+
+      // Append extra triples and replace the request stream
+      const augmented = extraTriples.length > 0
+        ? body + '\n' + extraTriples.join('\n') + '\n'
+        : body;
+
+      // Replace the request stream with the augmented body so ldp-service
+      // reads the modified content via its own rawBody middleware.
+      const stream = Readable.from([augmented]);
+      Object.assign(req, {
+        read: stream.read.bind(stream),
+        on: stream.on.bind(stream),
+        once: stream.once.bind(stream),
+        removeListener: stream.removeListener.bind(stream),
+        pipe: stream.pipe.bind(stream),
+      });
+
+      next();
+    });
+    req.on('error', next);
+  };
 }

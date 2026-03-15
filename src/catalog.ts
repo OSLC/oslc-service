@@ -129,8 +129,11 @@ function registerSPRoutes(
       }
     }
   }
-  const importPath = state.catalogPath + '/' + encodeURIComponent(slug) + '/import';
-  router.put(importPath, importHandler(storage, allResourceTypes));
+  const spSlugPath = state.catalogPath + '/' + encodeURIComponent(slug);
+  const containerBaseURI = env.appBase + spSlugPath + '/resources';
+  const spURI = env.appBase + spSlugPath;
+  const importPath = spSlugPath + '/import';
+  router.put(importPath, importHandler(storage, allResourceTypes, containerBaseURI, spURI));
 }
 
 /**
