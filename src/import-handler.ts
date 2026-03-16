@@ -191,6 +191,29 @@ export function importHandler(
         rewritten.add(subject, st.predicate, object, graphNode);
       }
 
+      // Build a rdf:type → oslc:resourceShape map from the ServiceProvider
+      const typeToShapeMap = new Map<string, string>();
+      try {
+        const spResult = await storage.read(spURI);
+        if (spResult.document) {
+          const spStore = spResult.document;
+          const spNode = rdflib.sym(spURI);
+          const services = spStore.each(spNode, OSLC('service'), null);
+          for (const svc of services) {
+            const factories = spStore.each(svc as rdflib.NamedNode, OSLC('creationFactory'), null);
+            for (const factory of factories) {
+              const resType = spStore.any(factory as rdflib.NamedNode, OSLC('resourceType'), null);
+              const shape = spStore.any(factory as rdflib.NamedNode, OSLC('resourceShape'), null);
+              if (resType && shape) {
+                typeToShapeMap.set(resType.value, shape.value);
+              }
+            }
+          }
+        }
+      } catch (err) {
+        console.error('[import] Failed to read ServiceProvider for shape lookup:', err);
+      }
+
       // Inject OSLC server-generated properties for each resource
       for (const [, targetURI] of uriMap) {
         const targetSym = rdflib.sym(targetURI);
@@ -212,6 +235,19 @@ export function importHandler(
         if (rewritten.statementsMatching(targetSym, OSLC('serviceProvider'), null).length === 0) {
           rewritten.add(targetSym, OSLC('serviceProvider'),
             rdflib.sym(spURI), targetGraph);
+        }
+
+        // oslc:instanceShape — look up from rdf:type
+        if (rewritten.statementsMatching(targetSym, OSLC('instanceShape'), null).length === 0) {
+          const types = rewritten.each(targetSym, RDF('type'), null);
+          for (const typeNode of types) {
+            const shapeURI = typeToShapeMap.get(typeNode.value);
+            if (shapeURI) {
+              rewritten.add(targetSym, OSLC('instanceShape'),
+                rdflib.sym(shapeURI), targetGraph);
+              break;
+            }
+          }
         }
       }
 
