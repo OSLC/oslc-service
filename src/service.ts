@@ -23,6 +23,7 @@
 
 import express, { type Request, type Response, type NextFunction } from 'express';
 import { Readable } from 'node:stream';
+import * as rdflib from 'rdflib';
 import { type StorageService, type StorageEnv } from 'storage-service';
 import { ldpService } from 'ldp-service';
 import { initCatalog, catalogPostHandler, recoverRoutes, type CatalogState } from './catalog.js';
@@ -111,7 +112,7 @@ export async function oslcService(
   // Inject server-generated OSLC properties into POST/PUT request bodies
   // before ldp-service processes them. This keeps OSLC domain knowledge
   // out of the generic LDP layer.
-  app.use(oslcPropertyInjector(env));
+  app.use(oslcPropertyInjector(env, storage));
 
   // Delegate all LDP operations to ldp-service
   app.use(ldpService(env, storage));
@@ -121,13 +122,16 @@ export async function oslcService(
 
 /**
  * Express middleware that injects server-generated OSLC properties
- * (dcterms:created, dcterms:creator, oslc:serviceProvider) into POST
- * and PUT request bodies before ldp-service parses them.
+ * (dcterms:created, dcterms:creator, oslc:serviceProvider,
+ * oslc:instanceShape) into POST and PUT request bodies before
+ * ldp-service parses them.
  *
  * Reads the raw body, appends Turtle triples (only if missing), and
  * replaces the request stream so ldp-service sees the augmented body.
  */
-function oslcPropertyInjector(env: OslcEnv) {
+function oslcPropertyInjector(env: OslcEnv, storage: StorageService) {
+  const OSLC = rdflib.Namespace('http://open-services.net/ns/core#');
+
   return (req: Request, res: Response, next: NextFunction): void => {
     if (req.method !== 'POST' && req.method !== 'PUT') {
       next();
@@ -162,38 +166,87 @@ function oslcPropertyInjector(env: OslcEnv) {
         );
       }
 
+      // Derive service provider URI from the request URL pattern:
+      // {appBase}/oslc/{sp-slug}/resources → SP is {appBase}/oslc/{sp-slug}
+      const fullURL = `${req.protocol}://${req.get('host')}${req.originalUrl}`;
+      const containerPath = fullURL.replace(env.appBase, '');
+      const segments = containerPath.split('/').filter(Boolean);
+      let spURI: string | undefined;
+      if (segments.length >= 2) {
+        spURI = env.appBase + '/' + segments.slice(0, 2).join('/');
+      }
+
       if (!body.includes('oslc:serviceProvider') && !body.includes('http://open-services.net/ns/core#serviceProvider')) {
-        // Derive service provider URI from the request URL pattern:
-        // {appBase}/oslc/{sp-slug}/resources → SP is {appBase}/oslc/{sp-slug}
-        const fullURL = `${req.protocol}://${req.get('host')}${req.originalUrl}`;
-        const containerPath = fullURL.replace(env.appBase, '');
-        const segments = containerPath.split('/').filter(Boolean);
-        if (segments.length >= 2) {
-          const spURI = env.appBase + '/' + segments.slice(0, 2).join('/');
+        if (spURI) {
           extraTriples.push(
             `<> <http://open-services.net/ns/core#serviceProvider> <${spURI}> .`
           );
         }
       }
 
-      // Append extra triples and replace the request stream
-      const augmented = extraTriples.length > 0
-        ? body + '\n' + extraTriples.join('\n') + '\n'
-        : body;
+      // Inject oslc:instanceShape on POST by looking up the creation
+      // factory's resourceShape from the service provider document.
+      const needsShape = req.method === 'POST'
+        && !body.includes('oslc:instanceShape')
+        && !body.includes('http://open-services.net/ns/core#instanceShape')
+        && spURI;
 
-      // Replace the request stream with the augmented body so ldp-service
-      // reads the modified content via its own rawBody middleware.
-      const stream = Readable.from([augmented]);
-      Object.assign(req, {
-        read: stream.read.bind(stream),
-        on: stream.on.bind(stream),
-        once: stream.once.bind(stream),
-        removeListener: stream.removeListener.bind(stream),
-        pipe: stream.pipe.bind(stream),
-      });
+      if (!needsShape) {
+        // No shape lookup needed — finish synchronously
+        finishRequest(req, body, extraTriples, next);
+        return;
+      }
 
-      next();
+      // Async shape lookup — non-fatal if it fails
+      (async () => {
+        try {
+          const result = await storage.read(spURI!);
+          if (result.status === 200 && result.document) {
+            const spDoc = result.document as unknown as rdflib.IndexedFormula;
+            // Find the creation factory whose oslc:creation matches the POST container URL
+            const creationFactories = spDoc.each(undefined, OSLC('creation'), rdflib.sym(fullURL));
+            for (const cfNode of creationFactories) {
+              const shapeNodes = spDoc.each(cfNode as rdflib.NamedNode, OSLC('resourceShape'), undefined);
+              if (shapeNodes.length > 0) {
+                extraTriples.push(
+                  `<> <http://open-services.net/ns/core#instanceShape> <${shapeNodes[0].value}> .`
+                );
+                break;
+              }
+            }
+          }
+        } catch (_err) {
+          // Shape lookup is non-fatal — continue without it
+        }
+        finishRequest(req, body, extraTriples, next);
+      })();
     });
     req.on('error', next);
   };
+}
+
+/**
+ * Append extra triples to the body and replace the request stream
+ * so ldp-service reads the modified content via its own rawBody middleware.
+ */
+function finishRequest(
+  req: Request,
+  body: string,
+  extraTriples: string[],
+  next: NextFunction
+): void {
+  const augmented = extraTriples.length > 0
+    ? body + '\n' + extraTriples.join('\n') + '\n'
+    : body;
+
+  const stream = Readable.from([augmented]);
+  Object.assign(req, {
+    read: stream.read.bind(stream),
+    on: stream.on.bind(stream),
+    once: stream.once.bind(stream),
+    removeListener: stream.removeListener.bind(stream),
+    pipe: stream.pipe.bind(stream),
+  });
+
+  next();
 }
