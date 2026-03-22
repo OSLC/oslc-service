@@ -213,13 +213,13 @@ export class EmbeddedMcpContext implements OslcMcpContext {
   // ── CRUD operations ─────────────────────────────────────────
 
   async createResource(factoryURI: string, turtle: string): Promise<string> {
-    // Parse the incoming Turtle
+    // Parse the incoming Turtle using the same base URI that the tool-factory
+    // used for serialization, so the placeholder subject resolves correctly.
     const inputStore = rdflib.graph() as unknown as LdpDocument;
-    rdflib.parse(turtle, inputStore, factoryURI + '/', 'text/turtle');
+    rdflib.parse(turtle, inputStore, 'urn:new-resource', 'text/turtle');
 
     // Generate a unique resource URI
     const resourceURI = factoryURI + '/' + generateId();
-    inputStore.uri = resourceURI;
 
     // Re-base all statements from the placeholder subject to the real URI
     const rebasedStore = rdflib.graph() as unknown as LdpDocument;
