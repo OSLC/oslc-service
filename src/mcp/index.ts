@@ -140,154 +140,169 @@ export async function mcpMiddleware(
   currentTools = tools;
   currentResources = resources;
 
-  // 3. Create shared MCP Server instance
-  const mcpServer = new Server(
-    { name: context.serverName, version: '1.0.0' },
-    { capabilities: { tools: {}, resources: {} } }
-  );
+  // 3. Factory to create a configured MCP Server for each session.
+  //    The SDK's Server can only connect to one transport at a time,
+  //    so each session gets its own Server + Transport pair.
+  function createMcpServer(): Server {
+    const server = new Server(
+      { name: context.serverName, version: '1.0.0' },
+      { capabilities: { tools: {}, resources: {} } }
+    );
 
-  // 4. Register tools/list handler
-  mcpServer.setRequestHandler(ListToolsRequestSchema, async () => ({
-    tools: [...currentTools, ...GENERIC_TOOLS],
-  }));
+    server.setRequestHandler(ListToolsRequestSchema, async () => ({
+      tools: [...currentTools, ...GENERIC_TOOLS],
+    }));
 
-  // 5. Register tools/call handler
-  mcpServer.setRequestHandler(CallToolRequestSchema, async (request) => {
-    const { name, arguments: args } = request.params;
-
-    try {
-      let result: string;
-
-      // Check generated tools first
-      const generatedHandler = context.getGeneratedHandler(name);
-      if (generatedHandler) {
-        result = await generatedHandler((args ?? {}) as Record<string, unknown>);
-      } else {
-        // Generic tools
-        const discovery = context.getDiscoveryResult();
-        switch (name) {
-          case 'get_resource':
-            result = await handleGetResource(context, args as { uri: string });
-            break;
-          case 'update_resource':
-            if (!discovery) throw new Error('Discovery not yet complete');
-            result = await handleUpdateResource(context, discovery, args as { uri: string; properties: Record<string, unknown> });
-            break;
-          case 'delete_resource':
-            result = await handleDeleteResource(context, args as { uri: string });
-            break;
-          case 'list_resource_types':
-            if (!discovery) throw new Error('Discovery not yet complete');
-            result = handleListResourceTypes(context, discovery);
-            break;
-          case 'query_resources':
-            result = await handleQueryResources(context, args as { queryBase: string; filter?: string; select?: string; orderBy?: string });
-            break;
-          default:
-            return {
-              content: [{ type: 'text' as const, text: `Unknown tool: ${name}` }],
-              isError: true,
-            };
+    server.setRequestHandler(CallToolRequestSchema, async (request) => {
+      const { name, arguments: args } = request.params;
+      try {
+        let result: string;
+        const generatedHandler = context.getGeneratedHandler(name);
+        if (generatedHandler) {
+          result = await generatedHandler((args ?? {}) as Record<string, unknown>);
+        } else {
+          const discovery = context.getDiscoveryResult();
+          switch (name) {
+            case 'get_resource':
+              result = await handleGetResource(context, args as { uri: string });
+              break;
+            case 'update_resource':
+              if (!discovery) throw new Error('Discovery not yet complete');
+              result = await handleUpdateResource(context, discovery, args as { uri: string; properties: Record<string, unknown> });
+              break;
+            case 'delete_resource':
+              result = await handleDeleteResource(context, args as { uri: string });
+              break;
+            case 'list_resource_types':
+              if (!discovery) throw new Error('Discovery not yet complete');
+              result = handleListResourceTypes(context, discovery);
+              break;
+            case 'query_resources':
+              result = await handleQueryResources(context, args as { queryBase: string; filter?: string; select?: string; orderBy?: string });
+              break;
+            default:
+              return {
+                content: [{ type: 'text' as const, text: `Unknown tool: ${name}` }],
+                isError: true,
+              };
+          }
         }
+        return { content: [{ type: 'text' as const, text: result }] };
+      } catch (err: unknown) {
+        const message = err instanceof Error ? err.message : String(err);
+        return {
+          content: [{ type: 'text' as const, text: `Error: ${message}` }],
+          isError: true,
+        };
       }
+    });
 
-      return { content: [{ type: 'text' as const, text: result }] };
-    } catch (err: unknown) {
-      const message = err instanceof Error ? err.message : String(err);
+    server.setRequestHandler(ListResourcesRequestSchema, async () => ({
+      resources: currentResources.map((r) => ({
+        uri: r.uri,
+        name: r.name,
+        description: r.description,
+        mimeType: r.mimeType,
+      })),
+    }));
+
+    server.setRequestHandler(ReadResourceRequestSchema, async (request) => {
+      const resource = currentResources.find((r) => r.uri === request.params.uri);
+      if (!resource) {
+        throw new Error(`Unknown resource: ${request.params.uri}`);
+      }
       return {
-        content: [{ type: 'text' as const, text: `Error: ${message}` }],
-        isError: true,
-      };
-    }
-  });
-
-  // 6. Register resources/list handler
-  mcpServer.setRequestHandler(ListResourcesRequestSchema, async () => ({
-    resources: currentResources.map((r) => ({
-      uri: r.uri,
-      name: r.name,
-      description: r.description,
-      mimeType: r.mimeType,
-    })),
-  }));
-
-  // 7. Register resources/read handler
-  mcpServer.setRequestHandler(ReadResourceRequestSchema, async (request) => {
-    const resource = currentResources.find((r) => r.uri === request.params.uri);
-    if (!resource) {
-      throw new Error(`Unknown resource: ${request.params.uri}`);
-    }
-    return {
-      contents: [
-        {
+        contents: [{
           uri: resource.uri,
           mimeType: resource.mimeType,
           text: resource.content,
-        },
-      ],
-    };
-  });
+        }],
+      };
+    });
 
-  // 8. Build Express Router with session management
+    return server;
+  }
+
+  // 4. Build Express Router with session management
   const router = express.Router();
   router.use(express.json());
 
-  const sessions = new Map<string, StreamableHTTPServerTransport>();
+  const sessions = new Map<string, { server: Server; transport: StreamableHTTPServerTransport }>();
 
   // POST — MCP JSON-RPC requests
   router.post('/', async (req: Request, res: Response) => {
-    const sessionId = req.headers['mcp-session-id'] as string | undefined;
-    let transport: StreamableHTTPServerTransport;
+    try {
+      const sessionId = req.headers['mcp-session-id'] as string | undefined;
+      let transport: StreamableHTTPServerTransport;
 
-    if (sessionId && sessions.has(sessionId)) {
-      transport = sessions.get(sessionId)!;
-    } else if (!sessionId) {
-      // New session — create transport
-      transport = new StreamableHTTPServerTransport({
-        sessionIdGenerator: () => randomUUID(),
-      });
+      let server: Server | undefined;
 
-      transport.onclose = () => {
-        if (transport.sessionId) {
-          sessions.delete(transport.sessionId);
-        }
-      };
+      if (sessionId && sessions.has(sessionId)) {
+        const session = sessions.get(sessionId)!;
+        server = session.server;
+        transport = session.transport;
+      } else if (!sessionId) {
+        // New session — create a Server + Transport pair
+        server = createMcpServer();
+        transport = new StreamableHTTPServerTransport({
+          sessionIdGenerator: () => randomUUID(),
+        });
 
-      await mcpServer.connect(transport);
-
-      if (transport.sessionId) {
-        sessions.set(transport.sessionId, transport);
+        await server.connect(transport);
+      } else {
+        res.status(404).json({ error: 'Session not found' });
+        return;
       }
-    } else {
-      // Invalid session ID
-      res.status(404).json({ error: 'Session not found' });
-      return;
-    }
 
-    await transport.handleRequest(req, res, req.body);
+      await transport.handleRequest(req, res, req.body);
+
+      // Store the session after handleRequest — the session ID is
+      // generated during the first handleRequest call, not at construction.
+      if (transport.sessionId && !sessions.has(transport.sessionId) && server) {
+        sessions.set(transport.sessionId, { server, transport });
+      }
+    } catch (err: unknown) {
+      const error = err instanceof Error ? err : new Error(String(err));
+      console.error('[mcp] POST error:', error.message);
+      if (!res.headersSent) {
+        res.status(500).json({ error: 'MCP request failed', detail: error.message });
+      }
+    }
   });
 
   // GET — SSE stream for server-initiated notifications
   router.get('/', async (req: Request, res: Response) => {
-    const sessionId = req.headers['mcp-session-id'] as string | undefined;
-    if (!sessionId || !sessions.has(sessionId)) {
-      res.status(404).json({ error: 'Session not found' });
-      return;
+    try {
+      const sessionId = req.headers['mcp-session-id'] as string | undefined;
+      if (!sessionId || !sessions.has(sessionId)) {
+        res.status(404).json({ error: 'Session not found' });
+        return;
+      }
+      await sessions.get(sessionId)!.transport.handleRequest(req, res);
+    } catch (err) {
+      console.error('[mcp] GET error:', err);
+      if (!res.headersSent) {
+        res.status(500).json({ error: 'MCP request failed' });
+      }
     }
-    const transport = sessions.get(sessionId)!;
-    await transport.handleRequest(req, res);
   });
 
   // DELETE — session termination
   router.delete('/', async (req: Request, res: Response) => {
-    const sessionId = req.headers['mcp-session-id'] as string | undefined;
-    if (!sessionId || !sessions.has(sessionId)) {
-      res.status(404).json({ error: 'Session not found' });
-      return;
+    try {
+      const sessionId = req.headers['mcp-session-id'] as string | undefined;
+      if (!sessionId || !sessions.has(sessionId)) {
+        res.status(404).json({ error: 'Session not found' });
+        return;
+      }
+      await sessions.get(sessionId)!.transport.handleRequest(req, res);
+      sessions.delete(sessionId);
+    } catch (err) {
+      console.error('[mcp] DELETE error:', err);
+      if (!res.headersSent) {
+        res.status(500).json({ error: 'MCP request failed' });
+      }
     }
-    const transport = sessions.get(sessionId)!;
-    await transport.handleRequest(req, res);
-    sessions.delete(sessionId);
   });
 
   // 9. Rediscovery function
