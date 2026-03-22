@@ -259,7 +259,8 @@ export function catalogPostHandler(
   env: OslcEnv,
   storage: StorageService,
   state: CatalogState,
-  router: Router
+  router: Router,
+  onRediscover?: () => Promise<void>
 ): RequestHandler {
   return async (req: Request, res: Response): Promise<void> => {
     // Read the raw body
@@ -346,6 +347,13 @@ export function catalogPostHandler(
 
     // Register query and import routes for this ServiceProvider
     registerSPRoutes(slug, env, storage, state, router);
+
+    // Trigger MCP rediscovery so new tools are available immediately
+    if (onRediscover) {
+      onRediscover().catch((err) => {
+        console.error('[catalog] MCP rediscovery failed:', err);
+      });
+    }
 
     // Add ldp:contains triple to the catalog
     const containsData = new rdflib.IndexedFormula();

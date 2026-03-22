@@ -27,6 +27,7 @@ import * as rdflib from 'rdflib';
 import { type StorageService, type StorageEnv } from 'storage-service';
 import { ldpService } from 'ldp-service';
 import { initCatalog, catalogPostHandler, recoverRoutes, type CatalogState } from './catalog.js';
+import { mcpMiddleware, type RediscoverFn } from './mcp/index.js';
 import { dialogCreateHandler } from './dialog.js';
 import { compactHandler } from './compact.js';
 import { sparqlHandler } from './sparql-handler.js';
@@ -82,11 +83,15 @@ export async function oslcService(
   if (env.templatePath) {
     catalogState = await initCatalog(env, storage);
 
-    // Intercept POST to catalog — must be mounted before ldp-service
-    app.post(catalogState.catalogPath, catalogPostHandler(env, storage, catalogState, dynamicRouter));
-
     // Re-register query and import routes for existing ServiceProviders
     await recoverRoutes(env, storage, catalogState, dynamicRouter);
+
+    // Mount embedded MCP endpoint at /mcp (before dynamicRouter and ldp-service)
+    const mcp = await mcpMiddleware(catalogState, storage, env);
+    app.use('/mcp', mcp.router);
+
+    // Intercept POST to catalog — must be mounted before ldp-service
+    app.post(catalogState.catalogPath, catalogPostHandler(env, storage, catalogState, dynamicRouter, mcp.rediscover));
   }
 
   // Creation dialog route

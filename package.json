@@ -10,6 +10,10 @@
     ".": {
       "import": "./dist/index.js",
       "types": "./dist/index.d.ts"
+    },
+    "./mcp": {
+      "import": "./dist/mcp/index.js",
+      "types": "./dist/mcp/index.d.ts"
     }
   },
   "scripts": {
@@ -19,6 +23,7 @@
   "author": "Jim Amsden",
   "contributors": "Jim Ruehlin <jruehlin@us.ibm.com>",
   "dependencies": {
+    "@modelcontextprotocol/sdk": "^1.12.1",
     "express": "^5.0.1",
     "rdflib": "^2.2.35",
     "storage-service": "*",
