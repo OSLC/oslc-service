@@ -348,13 +348,6 @@ export function catalogPostHandler(
     // Register query and import routes for this ServiceProvider
     registerSPRoutes(slug, env, storage, state, router);
 
-    // Trigger MCP rediscovery so new tools are available immediately
-    if (onRediscover) {
-      onRediscover().catch((err) => {
-        console.error('[catalog] MCP rediscovery failed:', err);
-      });
-    }
-
     // Add ldp:contains triple to the catalog
     const containsData = new rdflib.IndexedFormula();
     containsData.add(
@@ -363,6 +356,14 @@ export function catalogPostHandler(
       rdflib.sym(spURI)
     );
     await storage.insertData(containsData, state.catalogURI);
+
+    // Trigger MCP rediscovery AFTER the SP and ldp:contains are both
+    // written to storage, so the rediscovery finds the new SP.
+    if (onRediscover) {
+      onRediscover().catch((err) => {
+        console.error('[catalog] MCP rediscovery failed:', err);
+      });
+    }
 
     res.location(spURI).sendStatus(201);
   };

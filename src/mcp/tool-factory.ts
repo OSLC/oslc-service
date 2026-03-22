@@ -165,8 +165,9 @@ function createCreateHandler(
       }
     }
 
-    // Serialize to Turtle
-    const turtle = rdflib.serialize(null, store, undefined, 'text/turtle') ?? '';
+    // Serialize to Turtle — use the subject URI as base so rdflib
+    // can produce valid output (base must be absolute).
+    const turtle = rdflib.serialize(null, store, 'urn:new-resource', 'text/turtle') ?? '';
 
     // POST via context
     const locationURI = await context.createResource(factory.creationURI, turtle);
