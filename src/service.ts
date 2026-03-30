@@ -87,7 +87,7 @@ export async function oslcService(
     await recoverRoutes(env, storage, catalogState, dynamicRouter);
 
     // Mount embedded MCP endpoint at /mcp (before dynamicRouter and ldp-service)
-    const mcp = await mcpMiddleware(catalogState, storage, env);
+    const mcp = await mcpMiddleware(catalogState, storage, env, dynamicRouter);
     app.use('/mcp', mcp.router);
 
     // Intercept POST to catalog — must be mounted before ldp-service

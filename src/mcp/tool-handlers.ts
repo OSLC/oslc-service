@@ -11,6 +11,7 @@ import type {
   OslcMcpContext,
   DiscoveryResult,
 } from './context.js';
+import type { EmbeddedMcpContext } from './embedded-context.js';
 import { buildPredicateMapForResource } from './schema.js';
 
 const rdfNS = rdflib.Namespace('http://www.w3.org/1999/02/22-rdf-syntax-ns#');
@@ -197,4 +198,24 @@ export async function handleQueryResources(
     orderBy: args.orderBy,
   });
   return result;
+}
+
+// ── Handler: create_service_provider ───────────────────────────
+
+/**
+ * Handler for create_service_provider tool.
+ * Creates a new ServiceProvider in the catalog and triggers MCP
+ * rediscovery so that create/query tools for the new SP become available.
+ */
+export async function handleCreateServiceProvider(
+  context: EmbeddedMcpContext,
+  args: { title: string; slug: string; description?: string }
+): Promise<string> {
+  const spURI = await context.createSP(args.title, args.slug, args.description);
+  return JSON.stringify({
+    uri: spURI,
+    title: args.title,
+    slug: args.slug,
+    message: `ServiceProvider "${args.title}" created at ${spURI}. New create/query tools are now available for this ServiceProvider.`,
+  });
 }

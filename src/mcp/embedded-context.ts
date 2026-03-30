@@ -9,8 +9,9 @@
 
 import * as rdflib from 'rdflib';
 import type { IndexedFormula, NamedNode } from 'rdflib';
+import type { Router } from 'express';
 import { type StorageService, type LdpDocument } from 'storage-service';
-import type { CatalogState } from '../catalog.js';
+import { type CatalogState, createServiceProvider } from '../catalog.js';
 import type { OslcEnv } from '../service.js';
 import type {
   OslcMcpContext,
@@ -42,6 +43,7 @@ export class EmbeddedMcpContext implements OslcMcpContext {
   private readonly catalogState: CatalogState;
   private readonly storage: StorageService;
   private readonly env: OslcEnv;
+  private readonly dynamicRouter: Router;
 
   /** Cached discovery result for use by tool handlers. */
   private discoveryResult: DiscoveryResult | null = null;
@@ -49,12 +51,41 @@ export class EmbeddedMcpContext implements OslcMcpContext {
   /** Generated tools with handlers, keyed by name. */
   private generatedToolHandlers = new Map<string, (args: Record<string, unknown>) => Promise<string>>();
 
-  constructor(catalogState: CatalogState, storage: StorageService, env: OslcEnv) {
+  /** Rediscovery callback, set after mcpMiddleware wires it up. */
+  private onRediscover?: () => Promise<void>;
+
+  constructor(catalogState: CatalogState, storage: StorageService, env: OslcEnv, dynamicRouter: Router) {
     this.catalogState = catalogState;
     this.storage = storage;
     this.env = env;
+    this.dynamicRouter = dynamicRouter;
     this.serverName = catalogState.template.catalogProps.title;
     this.serverBase = env.appBase;
+  }
+
+  /**
+   * Set the rediscovery callback. Called by mcpMiddleware after
+   * the rediscover function is created.
+   */
+  setRediscoverCallback(fn: () => Promise<void>): void {
+    this.onRediscover = fn;
+  }
+
+  /**
+   * Create a new ServiceProvider in the catalog.
+   * Delegates to the shared createServiceProvider function in catalog.ts.
+   */
+  async createSP(title: string, slug: string, description?: string): Promise<string> {
+    return createServiceProvider(
+      this.env,
+      this.storage,
+      this.catalogState,
+      this.dynamicRouter,
+      title,
+      slug,
+      description,
+      this.onRediscover
+    );
   }
 
   /**

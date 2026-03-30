@@ -29,11 +29,26 @@ import {
   handleDeleteResource,
   handleListResourceTypes,
   handleQueryResources,
+  handleCreateServiceProvider,
 } from './tool-handlers.js';
 
 // ── Generic tool definitions ────────────────────────────────────
 
 const GENERIC_TOOLS: McpToolDefinition[] = [
+  {
+    name: 'create_service_provider',
+    description:
+      'Create a new ServiceProvider in the catalog. A ServiceProvider is a container for OSLC resources — create one before creating domain resources. After creation, new create/query tools for this ServiceProvider become available.',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        title: { type: 'string', description: 'Display name for the ServiceProvider (e.g., "EU-Rent")' },
+        slug: { type: 'string', description: 'URL-safe identifier used in the ServiceProvider URI (e.g., "eu-rent" produces /oslc/eu-rent)' },
+        description: { type: 'string', description: 'Optional description of the ServiceProvider' },
+      },
+      required: ['title', 'slug'],
+    },
+  },
   {
     name: 'get_resource',
     description: 'Fetch an OSLC resource by URI and return all its properties.',
@@ -127,10 +142,11 @@ export type RediscoverFn = () => Promise<void>;
 export async function mcpMiddleware(
   catalogState: CatalogState,
   storage: StorageService,
-  env: OslcEnv
+  env: OslcEnv,
+  dynamicRouter: Router
 ): Promise<{ router: Router; rediscover: RediscoverFn }> {
   // 1. Create the embedded context
-  const context = new EmbeddedMcpContext(catalogState, storage, env);
+  const context = new EmbeddedMcpContext(catalogState, storage, env, dynamicRouter);
 
   // 2. Discover initial capabilities
   let currentTools: McpToolDefinition[] = [];
@@ -163,6 +179,9 @@ export async function mcpMiddleware(
         } else {
           const discovery = context.getDiscoveryResult();
           switch (name) {
+            case 'create_service_provider':
+              result = await handleCreateServiceProvider(context, args as { title: string; slug: string; description?: string });
+              break;
             case 'get_resource':
               result = await handleGetResource(context, args as { uri: string });
               break;
@@ -317,6 +336,10 @@ export async function mcpMiddleware(
     }
   };
 
+  // Give the context access to the rediscovery function so the
+  // create_service_provider tool can trigger it after creating an SP.
+  context.setRediscoverCallback(rediscover);
+
   return { router, rediscover };
 }
 
@@ -358,6 +381,7 @@ export {
   handleDeleteResource,
   handleListResourceTypes,
   handleQueryResources,
+  handleCreateServiceProvider,
   resourceToJson,
 } from './tool-handlers.js';
 

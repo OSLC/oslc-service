@@ -252,6 +252,96 @@ function slugify(text: string): string {
 }
 
 /**
+ * Create a new ServiceProvider from the meta template.
+ *
+ * This is the core logic shared by both the REST POST handler and the
+ * MCP create_service_provider tool.
+ *
+ * @returns The URI of the newly created ServiceProvider.
+ * @throws Error if validation fails or the SP already exists.
+ */
+export async function createServiceProvider(
+  env: OslcEnv,
+  storage: StorageService,
+  state: CatalogState,
+  router: Router,
+  title: string,
+  slug: string,
+  description?: string,
+  onRediscover?: () => Promise<void>
+): Promise<string> {
+  const spURI = state.catalogURI + '/' + encodeURIComponent(slug);
+
+  // Check if SP already exists
+  const { status: existStatus } = await storage.read(spURI);
+  if (existStatus === 200) {
+    throw new Error('ServiceProvider already exists: ' + spURI);
+  }
+
+  // containerURI is still used by creation factory oslc:creation URLs,
+  // but we no longer create a BasicContainer for it. Resources are
+  // discovered via OSLC QueryCapability, not container membership.
+  const containerURI = spURI + '/resources';
+
+  // Build the ServiceProvider resource from the template
+  const spDoc = new rdflib.IndexedFormula() as unknown as LdpDocument;
+  spDoc.uri = spURI;
+  const spSym = spDoc.sym(spURI);
+
+  spDoc.add(spSym, RDF('type'), OSLC('ServiceProvider'), spSym);
+  spDoc.add(spSym, DCTERMS('title'), rdflib.lit(title), spSym);
+  spDoc.add(spSym, OSLC('details'), spSym, spSym);
+
+  if (description) {
+    spDoc.add(spSym, DCTERMS('description'), rdflib.lit(description), spSym);
+  }
+
+  // Add publisher from template
+  if (state.template.catalogProps.publisherTitle) {
+    const pub = rdflib.blankNode();
+    spDoc.add(spSym, DCTERMS('publisher'), pub, spSym);
+    spDoc.add(pub, RDF('type'), OSLC('Publisher'), spSym);
+    spDoc.add(pub, DCTERMS('title'), rdflib.lit(state.template.catalogProps.publisherTitle), spSym);
+    if (state.template.catalogProps.publisherIdentifier) {
+      spDoc.add(pub, DCTERMS('identifier'), rdflib.lit(state.template.catalogProps.publisherIdentifier), spSym);
+    }
+  }
+
+  // Instantiate services from the template
+  for (const metaSP of state.template.metaServiceProviders) {
+    for (const metaService of metaSP.services) {
+      const serviceNode = rdflib.blankNode();
+      spDoc.add(spSym, OSLC('service'), serviceNode, spSym);
+      instantiateService(spDoc, spSym, serviceNode, metaService, env, containerURI);
+    }
+  }
+
+  await storage.update(spDoc);
+
+  // Register query and import routes for this ServiceProvider
+  registerSPRoutes(slug, env, storage, state, router);
+
+  // Add ldp:contains triple to the catalog
+  const containsData = new rdflib.IndexedFormula();
+  containsData.add(
+    rdflib.sym(state.catalogURI),
+    LDP('contains'),
+    rdflib.sym(spURI)
+  );
+  await storage.insertData(containsData, state.catalogURI);
+
+  // Trigger MCP rediscovery AFTER the SP and ldp:contains are both
+  // written to storage, so the rediscovery finds the new SP.
+  if (onRediscover) {
+    onRediscover().catch((err) => {
+      console.error('[catalog] MCP rediscovery failed:', err);
+    });
+  }
+
+  return spURI;
+}
+
+/**
  * Express middleware that handles POST to the catalog to create
  * a new ServiceProvider from the meta template.
  */
@@ -294,78 +384,19 @@ export function catalogPostHandler(
 
     // Determine the SP identifier from Slug header or title
     const slug = (req.get('Slug') as string) || slugify(title);
-    const spURI = state.catalogURI + '/' + encodeURIComponent(slug);
 
-    // Check if SP already exists
-    const { status: existStatus } = await storage.read(spURI);
-    if (existStatus === 200) {
-      res.status(409).json({ error: 'ServiceProvider already exists: ' + spURI });
-      return;
-    }
-
-    // containerURI is still used by creation factory oslc:creation URLs,
-    // but we no longer create a BasicContainer for it. Resources are
-    // discovered via OSLC QueryCapability, not container membership.
-    const containerURI = spURI + '/resources';
-
-    // Build the ServiceProvider resource from the template
-    const spDoc = new rdflib.IndexedFormula() as unknown as LdpDocument;
-    spDoc.uri = spURI;
-    const spSym = spDoc.sym(spURI);
-
-    spDoc.add(spSym, RDF('type'), OSLC('ServiceProvider'), spSym);
-    spDoc.add(spSym, DCTERMS('title'), rdflib.lit(title), spSym);
-    spDoc.add(spSym, OSLC('details'), spSym, spSym);
-
-    // Copy description from POST body if provided
-    const descStmts = inputGraph.statementsMatching(undefined, DCTERMS('description'), undefined);
-    if (descStmts.length > 0) {
-      spDoc.add(spSym, DCTERMS('description'), rdflib.lit(descStmts[0].object.value), spSym);
-    }
-
-    // Add publisher from template
-    if (state.template.catalogProps.publisherTitle) {
-      const pub = rdflib.blankNode();
-      spDoc.add(spSym, DCTERMS('publisher'), pub, spSym);
-      spDoc.add(pub, RDF('type'), OSLC('Publisher'), spSym);
-      spDoc.add(pub, DCTERMS('title'), rdflib.lit(state.template.catalogProps.publisherTitle), spSym);
-      if (state.template.catalogProps.publisherIdentifier) {
-        spDoc.add(pub, DCTERMS('identifier'), rdflib.lit(state.template.catalogProps.publisherIdentifier), spSym);
+    try {
+      const description = inputGraph.statementsMatching(undefined, DCTERMS('description'), undefined)[0]?.object.value;
+      const spURI = await createServiceProvider(env, storage, state, router, title, slug, description, onRediscover);
+      res.location(spURI).sendStatus(201);
+    } catch (err) {
+      const message = err instanceof Error ? err.message : String(err);
+      if (message.includes('already exists')) {
+        res.status(409).json({ error: message });
+      } else {
+        res.status(500).json({ error: message });
       }
     }
-
-    // Instantiate services from the template
-    for (const metaSP of state.template.metaServiceProviders) {
-      for (const metaService of metaSP.services) {
-        const serviceNode = rdflib.blankNode();
-        spDoc.add(spSym, OSLC('service'), serviceNode, spSym);
-        instantiateService(spDoc, spSym, serviceNode, metaService, env, containerURI);
-      }
-    }
-
-    await storage.update(spDoc);
-
-    // Register query and import routes for this ServiceProvider
-    registerSPRoutes(slug, env, storage, state, router);
-
-    // Add ldp:contains triple to the catalog
-    const containsData = new rdflib.IndexedFormula();
-    containsData.add(
-      rdflib.sym(state.catalogURI),
-      LDP('contains'),
-      rdflib.sym(spURI)
-    );
-    await storage.insertData(containsData, state.catalogURI);
-
-    // Trigger MCP rediscovery AFTER the SP and ldp:contains are both
-    // written to storage, so the rediscovery finds the new SP.
-    if (onRediscover) {
-      onRediscover().catch((err) => {
-        console.error('[catalog] MCP rediscovery failed:', err);
-      });
-    }
-
-    res.location(spURI).sendStatus(201);
   };
 }
 
