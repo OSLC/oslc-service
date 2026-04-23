@@ -18,7 +18,7 @@ oslc-service is Express middleware that wraps ldp-service. Mount it in an Expres
 ```typescript
 import express from 'express';
 import { oslcService } from 'oslc-service';
-import { JenaStorageService } from 'ldp-service-jena';
+import { JenaStorageService } from 'jena-storage-service';
 
 const app = express();
 const storage = new JenaStorageService();
@@ -90,7 +90,7 @@ oslc-service  -- OSLC discovery, dialogs, query, compact, property injection
 ldp-service   -- W3C LDP protocol (GET, PUT, POST, DELETE, content negotiation, ETags)
   |
   v
-storage-service  -- Abstract storage interface (e.g., ldp-service-jena for Apache Jena/Fuseki)
+storage-service  -- Abstract storage interface (e.g., jena-storage-service for Apache Jena/Fuseki)
 ```
 
 All LDP protocol operations (content negotiation, serialization, container management, ETag handling, Prefer headers) are handled by ldp-service. oslc-service intercepts requests that require OSLC-specific behavior and delegates everything else downward.
