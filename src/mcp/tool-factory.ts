@@ -143,6 +143,43 @@ function createCreateHandler(
       store.add(subject, rdfNS('type'), rdflib.sym(factory.resourceType));
     }
 
+    // Add oslc:instanceShape pointing to this factory's shape. The HTTP
+    // POST middleware in service.ts does this for the REST path by
+    // matching rdf:type against factory.oslc:resourceType; the MCP path
+    // bypasses that middleware and goes directly to storage, so we must
+    // set these OSLC standard properties here.
+    if (factory.shape?.shapeURI) {
+      store.add(
+        subject,
+        rdflib.sym('http://open-services.net/ns/core#instanceShape'),
+        rdflib.sym(factory.shape.shapeURI)
+      );
+    }
+
+    // Add oslc:serviceProvider derived from the factory creation URL.
+    // Factory URL pattern: {spURI}/resources — strip trailing /resources
+    // (or whatever path segment) to get the SP URI.
+    const spURI = factory.creationURI.replace(/\/[^/]+\/?$/, '');
+    if (spURI && spURI !== factory.creationURI) {
+      store.add(
+        subject,
+        rdflib.sym('http://open-services.net/ns/core#serviceProvider'),
+        rdflib.sym(spURI)
+      );
+    }
+
+    // Add dcterms:created timestamp and dcterms:creator.
+    store.add(
+      subject,
+      rdflib.sym('http://purl.org/dc/terms/created'),
+      rdflib.lit(new Date().toISOString(), undefined, rdflib.sym('http://www.w3.org/2001/XMLSchema#dateTime'))
+    );
+    store.add(
+      subject,
+      rdflib.sym('http://purl.org/dc/terms/creator'),
+      rdflib.lit('mcp')
+    );
+
     // Add properties
     for (const [name, value] of Object.entries(args)) {
       const predicateURI = predicateMap.get(name);
