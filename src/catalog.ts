@@ -164,7 +164,7 @@ export async function recoverRoutes(
  * Store ResourceShape documents referenced by the template.
  *
  * Shape references may include fragment identifiers (e.g.,
- * urn:oslc:template/shapes/MRMS-Shapes#ProgramShape).
+ * urn:oslc:template/domain/MRMS-Shapes#ProgramShape).
  * We strip fragments to get unique document URIs, then load each
  * document file once and store it as a single resource.
  *
@@ -213,7 +213,7 @@ async function storeResourceShapes(
     // Try to find the .ttl file on disk
     const candidates = [
       join(configDir, relativePath + '.ttl'),
-      join(configDir, 'shapes', relativePath.replace('shapes/', '') + '.ttl'),
+      join(configDir, 'domain', relativePath.replace('domain/', '') + '.ttl'),
     ];
 
     let turtleContent: string | null = null;
