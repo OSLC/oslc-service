@@ -219,10 +219,15 @@ function oslcPropertyInjector(env: OslcEnv, storage: StorageService) {
             return;
           }
 
+          // Use statementsMatching rather than each() because each() with
+          // two undefineds returns subjects, not objects. We need the
+          // OBJECT side (the rdf:type values) to match against factory
+          // oslc:resourceType.
           const resourceTypes = bodyStore
-            .each(undefined, RDF('type'), undefined)
-            .filter(n => n.termType === 'NamedNode')
-            .map(n => n.value);
+            .statementsMatching(null, RDF('type'), null)
+            .map(st => st.object)
+            .filter(o => o.termType === 'NamedNode')
+            .map(o => o.value);
 
           const result = await storage.read(spURI!);
           if (result.status === 200 && result.document) {
