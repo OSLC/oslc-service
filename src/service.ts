@@ -205,18 +205,58 @@ function oslcPropertyInjector(env: OslcEnv, storage: StorageService) {
       // Async shape lookup — non-fatal if it fails
       (async () => {
         try {
+          // Parse the POST body to find the resource's rdf:type. All BMM
+          // creation factories share the same oslc:creation URL (the
+          // container), so we must disambiguate by resourceType.
+          const RDF = rdflib.Namespace('http://www.w3.org/1999/02/22-rdf-syntax-ns#');
+          const bodyStore = rdflib.graph();
+          const bodyBase = fullURL.endsWith('/') ? fullURL : fullURL + '/';
+          try {
+            rdflib.parse(body, bodyStore, bodyBase, contentType.split(';')[0].trim());
+          } catch {
+            // If body parse fails the shape lookup can't disambiguate — skip
+            finishRequest(req, body, extraTriples, next);
+            return;
+          }
+
+          const resourceTypes = bodyStore
+            .each(undefined, RDF('type'), undefined)
+            .filter(n => n.termType === 'NamedNode')
+            .map(n => n.value);
+
           const result = await storage.read(spURI!);
           if (result.status === 200 && result.document) {
             const spDoc = result.document as unknown as rdflib.IndexedFormula;
-            // Find the creation factory whose oslc:creation matches the POST container URL
-            const creationFactories = spDoc.each(undefined, OSLC('creation'), rdflib.sym(fullURL));
-            for (const cfNode of creationFactories) {
-              const shapeNodes = spDoc.each(cfNode as rdflib.NamedNode, OSLC('resourceShape'), undefined);
+            // Candidate factories are those whose oslc:creation matches the POST URL.
+            const candidateFactories = spDoc.each(undefined, OSLC('creation'), rdflib.sym(fullURL));
+
+            // Choose the factory whose oslc:resourceType matches the body's rdf:type.
+            // If multiple factories share the same creation URL (typical for
+            // domain servers with a single container), this disambiguation is
+            // required to get the correct resourceShape for instanceShape.
+            let chosen: rdflib.NamedNode | undefined;
+            for (const cfNode of candidateFactories) {
+              const factoryTypes = spDoc
+                .each(cfNode as rdflib.NamedNode, OSLC('resourceType'), undefined)
+                .map(n => n.value);
+              if (factoryTypes.some(t => resourceTypes.includes(t))) {
+                chosen = cfNode as rdflib.NamedNode;
+                break;
+              }
+            }
+
+            // Fall back to the first candidate if no type match (preserves
+            // prior behavior when the client doesn't declare rdf:type).
+            if (!chosen && candidateFactories.length > 0) {
+              chosen = candidateFactories[0] as rdflib.NamedNode;
+            }
+
+            if (chosen) {
+              const shapeNodes = spDoc.each(chosen, OSLC('resourceShape'), undefined);
               if (shapeNodes.length > 0) {
                 extraTriples.push(
                   `<> <http://open-services.net/ns/core#instanceShape> <${shapeNodes[0].value}> .`
                 );
-                break;
               }
             }
           }
