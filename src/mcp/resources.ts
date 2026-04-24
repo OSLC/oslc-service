@@ -113,8 +113,8 @@ export function formatShapesContent(shapes: Map<string, DiscoveredShape>): strin
     }
     lines.push(`URI: ${uri}\n`);
 
-    lines.push('| Property | Type | Required | Description |');
-    lines.push('|----------|------|----------|-------------|');
+    lines.push('| Property | Type | Required | Description | Inverse |');
+    lines.push('|----------|------|----------|-------------|---------|');
     for (const prop of shape.properties) {
       const required =
         prop.occurs === 'exactly-one' || prop.occurs === 'one-or-more';
@@ -123,8 +123,11 @@ export function formatShapesContent(shapes: Map<string, DiscoveredShape>): strin
         prop.occurs === 'zero-or-many' || prop.occurs === 'one-or-more';
       const typeStr = multi ? `${typeLabel}[]` : typeLabel;
       const ro = prop.readOnly ? ' (read-only)' : '';
+      const inverse = prop.inverseLabel
+        ? prop.inverseLabel
+        : prop.inversePropertyDefinition ?? '';
       lines.push(
-        `| ${prop.name} | ${typeStr} | ${required ? 'Yes' : 'No'} | ${prop.description}${ro} |`
+        `| ${prop.name} | ${typeStr} | ${required ? 'Yes' : 'No'} | ${prop.description}${ro} | ${inverse} |`
       );
     }
     lines.push('');

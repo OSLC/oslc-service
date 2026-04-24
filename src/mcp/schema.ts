@@ -279,6 +279,14 @@ export function parseShape(store: IndexedFormula, shapeURI: string): DiscoveredS
       }
     }
 
+    // Inverse metadata — identifiers for the reverse direction used
+    // by clients to render incoming-link discovery results. The
+    // inverse URI is never asserted as a triple; only the forward
+    // direction is stored.
+    const inversePropertyDefinition =
+      store.any(pn, oslcNS('inversePropertyDefinition'))?.value;
+    const inverseLabel = store.anyValue(pn, oslcNS('inverseLabel'));
+
     properties.push({
       name,
       predicateURI: propertyDefinition,
@@ -288,6 +296,8 @@ export function parseShape(store: IndexedFormula, shapeURI: string): DiscoveredS
       range,
       readOnly,
       allowedValues,
+      ...(inversePropertyDefinition ? { inversePropertyDefinition } : {}),
+      ...(inverseLabel ? { inverseLabel } : {}),
     });
   }
 

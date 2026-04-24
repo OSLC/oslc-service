@@ -29,6 +29,18 @@ export interface ShapeProperty {
   readOnly: boolean;
   /** Allowed values (from oslc:allowedValue / oslc:allowedValues) */
   allowedValues: string[];
+  /**
+   * URI of the inverse property, from oslc:inversePropertyDefinition.
+   * The inverse URI is an identifier only — it is never asserted as a
+   * triple. Clients use it to render incoming-link discovery results
+   * as if they were outgoing, making link ownership transparent.
+   */
+  inversePropertyDefinition?: string;
+  /**
+   * Human-readable label for the inverse, from oslc:inverseLabel.
+   * Used by oslc-browser to label incoming-link rows in the UI.
+   */
+  inverseLabel?: string;
 }
 
 /**
