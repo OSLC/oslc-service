@@ -51,22 +51,30 @@ export function ldmDiscoverLinksHandler(storage: StorageService): RequestHandler
       for await (const chunk of req) body += chunk;
 
       const store = rdflib.graph();
+      // rdflib requires an absolute base URI for parsing. Use the full
+      // request URL so any relative URIs in the body resolve sensibly.
+      const host = req.headers.host ?? 'localhost';
+      const proto = (req.headers['x-forwarded-proto'] as string) ?? req.protocol ?? 'http';
+      const baseURI = `${proto}://${host}${req.originalUrl ?? req.url}`;
       try {
-        rdflib.parse(body, store, req.url, contentType);
+        rdflib.parse(body, store, baseURI, contentType);
       } catch (err) {
         res.status(400).json({ error: 'Invalid RDF: ' + String(err) });
         return;
       }
 
+      // statementsMatching is unambiguous when multiple positions are
+      // open — store.each() overloads its return based on which
+      // position is null and misbehaves here.
       targetURIs = store
-        .each(null, OSLC_LDM('resources'), null)
-        .filter((n) => n.termType === 'NamedNode')
-        .map((n) => n.value);
+        .statementsMatching(null, OSLC_LDM('resources'), null)
+        .filter((st) => st.object.termType === 'NamedNode')
+        .map((st) => st.object.value);
 
       predicates = store
-        .each(null, OSLC_LDM('linkPredicates'), null)
-        .filter((n) => n.termType === 'NamedNode')
-        .map((n) => n.value);
+        .statementsMatching(null, OSLC_LDM('linkPredicates'), null)
+        .filter((st) => st.object.termType === 'NamedNode')
+        .map((st) => st.object.value);
     } else {
       // Form-encoded / JSON fallback (legacy LDM clients). Requires
       // that Express body parsers for urlencoded and json are mounted
