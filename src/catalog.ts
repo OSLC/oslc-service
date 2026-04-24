@@ -120,12 +120,15 @@ function registerSPRoutes(
   router.get(queryPath, qHandler);
   router.post(queryPath, qHandler);
 
-  // Register import route for bulk-loading RDF data
+  // Register import route for bulk-loading RDF data.
+  // Resource types come from creation factories (they advertise the set
+  // of types this SP can instantiate). QueryCapabilities are now a
+  // single generic endpoint and no longer pinned to a type.
   const allResourceTypes: string[] = [];
   for (const metaSP of state.template.metaServiceProviders) {
     for (const metaService of metaSP.services) {
-      for (const qc of metaService.queryCapabilities) {
-        allResourceTypes.push(...qc.resourceTypes);
+      for (const cf of metaService.creationFactories) {
+        allResourceTypes.push(...cf.resourceTypes);
       }
     }
   }

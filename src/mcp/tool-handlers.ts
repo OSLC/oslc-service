@@ -151,16 +151,16 @@ export function handleListResourceTypes(
   const types: unknown[] = [];
 
   for (const sp of discovery.serviceProviders) {
-    for (const factory of sp.factories) {
-      const matchingQuery = sp.queries.find(
-        (q) => q.resourceType === factory.resourceType
-      );
+    // The SP has a single shared query endpoint; every type is queried
+    // via that endpoint with an oslc.where=rdf:type=... filter.
+    const queryBase = sp.queries[0]?.queryBase ?? null;
 
+    for (const factory of sp.factories) {
       types.push({
         name: factory.title,
         resourceType: factory.resourceType,
         creationFactory: factory.creationURI,
-        queryCapability: matchingQuery?.queryBase ?? null,
+        queryCapability: queryBase,
         serviceProvider: sp.title,
         properties: factory.shape
           ? factory.shape.properties
