@@ -16,5 +16,6 @@ export { queryHandler } from './query-handler.js';
 export { importHandler } from './import-handler.js';
 export { sparqlHandler } from './sparql-handler.js';
 export { resourceHandler } from './resource-handler.js';
+export { ldmDiscoverLinksHandler } from './ldm-handler.js';
 export { mcpMiddleware } from './mcp/index.js';
 export type { OslcMcpContext, ShapeProperty, DiscoveredShape } from './mcp/context.js';

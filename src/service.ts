@@ -32,6 +32,7 @@ import { dialogCreateHandler } from './dialog.js';
 import { compactHandler } from './compact.js';
 import { sparqlHandler } from './sparql-handler.js';
 import { resourceHandler } from './resource-handler.js';
+import { ldmDiscoverLinksHandler } from './ldm-handler.js';
 
 export interface OslcEnv extends StorageEnv {
   context?: string;
@@ -109,6 +110,14 @@ export async function oslcService(
     const sparqlPath = (env.context ?? '/') + 'sparql';
     app.get(sparqlPath, sparqlHandler(storage));
     app.post(sparqlPath, sparqlHandler(storage));
+  }
+
+  // OSLC Link Discovery Management endpoint — only if the storage
+  // backend supports reverse queries. Returns incoming links to one or
+  // more target resources from this server's storage.
+  if (storage.getIncomingLinks) {
+    const ldmPath = (env.context ?? '/') + 'discover-links';
+    app.post(ldmPath, ldmDiscoverLinksHandler(storage));
   }
 
   // Mount dynamic router before ldp-service
