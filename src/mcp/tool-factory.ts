@@ -82,11 +82,27 @@ export function generateTools(
         const inputSchema = shapeToJsonSchema(factory.shape, true) as unknown as Record<string, unknown>;
         const predicateMap = buildPredicateMap(factory.shape);
 
+        // Template-derived factories (advertised before any concrete SP
+        // exists) have an empty creationURI. Their tool *metadata* is
+        // useful to AI clients exploring the server, but invoking the
+        // handler would compute a relative URI and crash. Replace the
+        // handler with a clear error so the user knows to call
+        // create_service_provider first; the real handler gets wired
+        // in by rediscovery after an SP is created.
+        const handler = factory.creationURI
+          ? createCreateHandler(context, factory, predicateMap)
+          : async () => {
+              throw new Error(
+                `No ServiceProvider exists yet for ${factory.title}. ` +
+                `Call create_service_provider first.`
+              );
+            };
+
         tools.push({
           name: createName,
           description: `Create a new ${factory.title} resource. ${factory.shape.description ?? ''}`.trim(),
           inputSchema,
-          handler: createCreateHandler(context, factory, predicateMap),
+          handler,
         });
       }
 

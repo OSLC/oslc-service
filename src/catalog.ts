@@ -335,10 +335,18 @@ export async function createServiceProvider(
 
   // Trigger MCP rediscovery AFTER the SP and ldp:contains are both
   // written to storage, so the rediscovery finds the new SP.
+  // Awaited (not fire-and-forget) because callers — especially the
+  // create_service_provider MCP tool — depend on the per-factory
+  // create_*/query_* tools being live in the handler map by the time
+  // this call returns. With fire-and-forget, the next MCP tools/call
+  // can hit stale template-derived handlers (empty creationURI) and
+  // fail with "NamedNode IRI must be absolute" on the just-created SP.
   if (onRediscover) {
-    onRediscover().catch((err) => {
+    try {
+      await onRediscover();
+    } catch (err) {
       console.error('[catalog] MCP rediscovery failed:', err);
-    });
+    }
   }
 
   return spURI;
