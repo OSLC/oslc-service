@@ -29,7 +29,7 @@ import { ldpService } from 'ldp-service';
 import { initCatalog, catalogPostHandler, recoverRoutes, type CatalogState } from './catalog.js';
 import { mcpMiddleware, type RediscoverFn } from './mcp/index.js';
 import { dialogCreateHandler } from './dialog.js';
-import { compactHandler } from './compact.js';
+import { compactHandler, compactAcceptMiddleware } from './compact.js';
 import { sparqlHandler } from './sparql-handler.js';
 import { resourceHandler } from './resource-handler.js';
 import { ldmDiscoverLinksHandler } from './ldm-handler.js';
@@ -98,7 +98,16 @@ export async function oslcService(
   // Creation dialog route
   app.get('/dialog/create', dialogCreateHandler(env, storage));
 
-  // Resource preview (Compact) route
+  // OSLC Compact via Accept-header content negotiation on the
+  // resource URL itself (per OSLC Core). Mounted before ldp-service
+  // so a client requesting application/x-oslc-compact+xml on a stored
+  // resource gets the Compact projection rather than the full LDP body.
+  app.use(compactAcceptMiddleware(env, storage));
+
+  // Server-local convenience endpoint for compact: lets a client (or
+  // a client-side smallPreview iframe) request /compact?uri=<URI>
+  // with a chosen Accept header. The smallPreview oslc:document URL
+  // points back here with Accept: text/html.
   app.get('/compact', compactHandler(env, storage));
 
   // Resource lookup — resolves any stored resource by URI
