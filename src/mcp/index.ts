@@ -99,7 +99,8 @@ const GENERIC_TOOLS: McpToolDefinition[] = [
   },
   {
     name: 'query_resources',
-    description: 'Query OSLC resources using a query capability URL.',
+    description:
+      'Query OSLC resources using a query capability URL. With the server consolidated to one QueryCapability per ServiceProvider, narrow by resource type by passing oslc.where=rdf:type=<...> in the filter argument.',
     inputSchema: {
       type: 'object',
       properties: {
@@ -110,7 +111,7 @@ const GENERIC_TOOLS: McpToolDefinition[] = [
         filter: {
           type: 'string',
           description:
-            'OSLC query filter (oslc.where). Example: dcterms:title="My Resource"',
+            'OSLC query filter (oslc.where). Example: rdf:type=<http://www.omg.org/spec/BMM#Vision> or dcterms:title="My Resource"',
         },
         select: {
           type: 'string',
@@ -123,6 +124,29 @@ const GENERIC_TOOLS: McpToolDefinition[] = [
       },
       required: ['queryBase'],
     },
+  },
+  // The next three tools mirror the MCP resources at oslc://catalog,
+  // oslc://vocabulary, oslc://shapes. Some MCP host transports (notably
+  // Claude Desktop's chat-style tool-call mode) surface tools but not
+  // generic resources to the assistant; these tool wrappers make the
+  // same content reachable from any tool-only client.
+  {
+    name: 'read_catalog',
+    description:
+      'Return the OSLC ServiceProvider Catalog: every ServiceProvider on this server with its creation factories, query capabilities, and resource types. Mirrors the oslc://catalog MCP resource.',
+    inputSchema: { type: 'object', properties: {}, required: [] },
+  },
+  {
+    name: 'read_vocabulary',
+    description:
+      'Return the merged OSLC vocabulary across all RDF vocabulary files in config/domain/ — resource types and their relationships, drawn from the discovered shapes. Read this before creating resources to understand the domain model. Mirrors the oslc://vocabulary MCP resource.',
+    inputSchema: { type: 'object', properties: {}, required: [] },
+  },
+  {
+    name: 'read_shapes',
+    description:
+      'Return the merged OSLC ResourceShapes across all shape files in config/domain/ — per-type property definitions including names, value types, cardinalities, descriptions, and inverse metadata. Read this to know what fields each resource type accepts. Mirrors the oslc://shapes MCP resource.',
+    inputSchema: { type: 'object', properties: {}, required: [] },
   },
 ];
 
@@ -198,6 +222,20 @@ export async function mcpMiddleware(
               break;
             case 'query_resources':
               result = await handleQueryResources(context, args as { queryBase: string; filter?: string; select?: string; orderBy?: string });
+              break;
+            case 'read_catalog': {
+              if (!discovery) throw new Error('Discovery not yet complete');
+              const catalogHeader = `**Server:** ${context.serverName}\n**Base URL:** ${context.serverBase}\n\n`;
+              result = catalogHeader + discovery.catalogContent;
+              break;
+            }
+            case 'read_vocabulary':
+              if (!discovery) throw new Error('Discovery not yet complete');
+              result = discovery.vocabularyContent;
+              break;
+            case 'read_shapes':
+              if (!discovery) throw new Error('Discovery not yet complete');
+              result = discovery.shapesContent;
               break;
             default:
               return {

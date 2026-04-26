@@ -13,7 +13,6 @@ import type {
   McpToolDefinition,
   DiscoveryResult,
   DiscoveredFactory,
-  DiscoveredQuery,
 } from './context.js';
 import { shapeToJsonSchema, buildPredicateMap } from './schema.js';
 
@@ -57,15 +56,14 @@ export function generateTools(
   const tools: GeneratedTool[] = [];
   const usedNames = new Set<string>();
 
+  // Per-type query_<class> tools are intentionally NOT generated. With
+  // the server consolidated to a single QueryCapability per
+  // ServiceProvider, the standard query_resources tool (in
+  // tool-handlers.ts) accepts a queryBase + arbitrary oslc.where
+  // filter and is sufficient. Generating 14 per-type wrappers just
+  // bloats the tool list and duplicates what callers can already
+  // express with `oslc.where=rdf:type=<...>`.
   for (const sp of discovery.serviceProviders) {
-    // A ServiceProvider normally has a single QueryCapability — the
-    // server exposes one /query endpoint that accepts any oslc.where
-    // filter. Per-type query tools below are a client-side convenience
-    // built from the creation factories' resource types; they auto-
-    // prepend a rdf:type constraint to the user's filter.
-    const sharedQuery = sp.queries[0];
-
-    // Generate create and (type-filtered) query tools from factories
     for (const factory of sp.factories) {
       const baseName = sanitizeName(factory.title);
       let createName = `create_${baseName}`;
@@ -104,41 +102,6 @@ export function generateTools(
           inputSchema,
           handler,
         });
-      }
-
-      // Generate a type-filtered query tool using the SP's shared
-      // query endpoint. The handler auto-adds rdf:type=<factory type>
-      // to whatever filter the caller passes.
-      if (sharedQuery && factory.resourceType) {
-        const queryName = `query_${baseName}`;
-        if (!usedNames.has(queryName)) {
-          usedNames.add(queryName);
-          tools.push({
-            name: queryName,
-            description: `Query ${factory.title} resources. Automatically filters to rdf:type=<${factory.resourceType}>; add additional constraints via the filter argument.`,
-            inputSchema: {
-              type: 'object',
-              properties: {
-                filter: {
-                  type: 'string',
-                  description:
-                    'Additional OSLC query filter (oslc.where) to AND with the type constraint. Example: dcterms:title="My Resource"',
-                },
-                select: {
-                  type: 'string',
-                  description:
-                    'Property projection (oslc.select). Example: dcterms:title,dcterms:description',
-                },
-                orderBy: {
-                  type: 'string',
-                  description: 'Sort order (oslc.orderBy).',
-                },
-              },
-              required: [],
-            },
-            handler: createTypeQueryHandler(context, sharedQuery, factory.resourceType),
-          });
-        }
       }
     }
   }
@@ -253,34 +216,5 @@ function createCreateHandler(
     }
 
     return JSON.stringify({ created: true });
-  };
-}
-
-/**
- * Create a handler for a type-filtered query_<type> tool. The handler
- * auto-adds a rdf:type=<resourceType> constraint to the oslc.where
- * filter so the caller only needs to supply additional constraints.
- */
-function createTypeQueryHandler(
-  context: OslcMcpContext,
-  queryCapability: DiscoveredQuery,
-  resourceType: string
-): (args: Record<string, unknown>) => Promise<string> {
-  return async (args: Record<string, unknown>): Promise<string> => {
-    const typeFilter = `rdf:type=<${resourceType}>`;
-    const userFilter = args.filter as string | undefined;
-    const combined = userFilter && userFilter.trim().length > 0
-      ? `${typeFilter} and ${userFilter}`
-      : typeFilter;
-
-    const result = await context.queryResources(
-      queryCapability.queryBase,
-      {
-        filter: combined,
-        select: args.select as string | undefined,
-        orderBy: args.orderBy as string | undefined,
-      }
-    );
-    return result;
   };
 }
