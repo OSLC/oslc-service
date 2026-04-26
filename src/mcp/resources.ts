@@ -64,16 +64,13 @@ export function formatCatalogContent(
     lines.push(`## ${sp.title}`);
     lines.push(`URI: ${sp.uri}\n`);
 
-    // sp.domains is a recent addition; tolerate older callers that
-    // construct DiscoveredServiceProvider without it.
-    const domains = sp.domains ?? [];
-    if (domains.length > 0) {
+    if (sp.domains.length > 0) {
       lines.push('### Vocabularies (oslc:domain)');
       lines.push(
         'Vocabulary namespace URIs declared by this ServiceProvider. ' +
         'Fetch each with get_resource for class and property definitions.'
       );
-      for (const d of domains) {
+      for (const d of sp.domains) {
         lines.push(`- ${d}`);
       }
       lines.push('');
