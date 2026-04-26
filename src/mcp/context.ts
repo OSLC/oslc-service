@@ -98,8 +98,11 @@ export interface DiscoveredServiceProvider {
   /** oslc:domain references — vocabulary namespace URIs declared by
    *  this ServiceProvider. Per OSLC Core, vocabularies are discovered
    *  through the catalog: each SP declares its domains here, and
-   *  clients fetch the domain content via get_resource on the URI. */
-  domains: string[];
+   *  clients fetch the domain content via get_resource on the URI.
+   *  Optional for backward compatibility with discovery code that
+   *  hasn't been updated to populate it; formatCatalogContent treats
+   *  undefined as an empty list. */
+  domains?: string[];
 }
 
 /**
