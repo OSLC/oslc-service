@@ -31,30 +31,21 @@ export function buildMcpResources(
 ): McpResourceDefinition[] {
   const catalogHeader = `**Server:** ${serverName}\n**Base URL:** ${serverBase}\n\n`;
 
+  // Per OSLC Core, vocabularies and resource shapes are discovered
+  // through the catalog: each ServiceProvider declares its
+  // oslc:domain (vocabulary URIs) and each creation factory declares
+  // its oslc:resourceShape (shape URI). The assistant fetches these
+  // via get_resource on the URI rather than via a server-wide
+  // aggregate. Only the catalog itself needs a top-level resource
+  // entry; vocabulary and shape content are reachable through it.
   return [
     {
       uri: 'oslc://catalog',
       name: 'OSLC Service Provider Catalog',
       description:
-        'Lists all service providers, creation factories, query capabilities, and resource types available on this OSLC server.',
+        'Lists all service providers, creation factories, query capabilities, and resource types available on this OSLC server. Each factory references its shape URI via oslc:resourceShape; each ServiceProvider references its vocabularies via oslc:domain. Use get_resource on those URIs to fetch the shape and vocabulary definitions.',
       mimeType: 'text/plain',
       content: catalogHeader + discovery.catalogContent,
-    },
-    {
-      uri: 'oslc://vocabulary',
-      name: 'OSLC Vocabulary',
-      description:
-        'Resource types and their relationships. Read this to understand the domain model before creating resources.',
-      mimeType: 'text/plain',
-      content: discovery.vocabularyContent,
-    },
-    {
-      uri: 'oslc://shapes',
-      name: 'OSLC Resource Shapes',
-      description:
-        'Property definitions for each resource type: names, types, cardinalities, descriptions. Read this to know what fields each resource type accepts.',
-      mimeType: 'text/plain',
-      content: discovery.shapesContent,
     },
   ];
 }
@@ -72,6 +63,18 @@ export function formatCatalogContent(
   for (const sp of providers) {
     lines.push(`## ${sp.title}`);
     lines.push(`URI: ${sp.uri}\n`);
+
+    if (sp.domains.length > 0) {
+      lines.push('### Vocabularies (oslc:domain)');
+      lines.push(
+        'Vocabulary namespace URIs declared by this ServiceProvider. ' +
+        'Fetch each with get_resource for class and property definitions.'
+      );
+      for (const d of sp.domains) {
+        lines.push(`- ${d}`);
+      }
+      lines.push('');
+    }
 
     if (sp.factories.length > 0) {
       lines.push('### Creation Factories');

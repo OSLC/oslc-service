@@ -125,27 +125,16 @@ const GENERIC_TOOLS: McpToolDefinition[] = [
       required: ['queryBase'],
     },
   },
-  // The next three tools mirror the MCP resources at oslc://catalog,
-  // oslc://vocabulary, oslc://shapes. Some MCP host transports (notably
-  // Claude Desktop's chat-style tool-call mode) surface tools but not
-  // generic resources to the assistant; these tool wrappers make the
-  // same content reachable from any tool-only client.
+  // The catalog is the entry point for OSLC discovery: it lists
+  // every ServiceProvider with its creation factories (each declaring
+  // an oslc:resourceShape URI) and its oslc:domain vocabulary URIs.
+  // Use get_resource on those URIs to fetch the shape and vocabulary
+  // definitions — they are not exposed as separate aggregate tools,
+  // because OSLC discovery is per-ServiceProvider, not server-wide.
   {
     name: 'read_catalog',
     description:
-      'Return the OSLC ServiceProvider Catalog: every ServiceProvider on this server with its creation factories, query capabilities, and resource types. Mirrors the oslc://catalog MCP resource.',
-    inputSchema: { type: 'object', properties: {}, required: [] },
-  },
-  {
-    name: 'read_vocabulary',
-    description:
-      'Return the merged OSLC vocabulary across all RDF vocabulary files in config/domain/ — resource types and their relationships, drawn from the discovered shapes. Read this before creating resources to understand the domain model. Mirrors the oslc://vocabulary MCP resource.',
-    inputSchema: { type: 'object', properties: {}, required: [] },
-  },
-  {
-    name: 'read_shapes',
-    description:
-      'Return the merged OSLC ResourceShapes across all shape files in config/domain/ — per-type property definitions including names, value types, cardinalities, descriptions, and inverse metadata. Read this to know what fields each resource type accepts. Mirrors the oslc://shapes MCP resource.',
+      'Return the OSLC ServiceProvider Catalog: every ServiceProvider on this server with its creation factories, query capabilities, resource types, vocabulary references (oslc:domain), and shape references (oslc:resourceShape). Mirrors the oslc://catalog MCP resource. Fetch the referenced vocabulary and shape URIs with get_resource for their full content.',
     inputSchema: { type: 'object', properties: {}, required: [] },
   },
 ];
@@ -229,14 +218,6 @@ export async function mcpMiddleware(
               result = catalogHeader + discovery.catalogContent;
               break;
             }
-            case 'read_vocabulary':
-              if (!discovery) throw new Error('Discovery not yet complete');
-              result = discovery.vocabularyContent;
-              break;
-            case 'read_shapes':
-              if (!discovery) throw new Error('Discovery not yet complete');
-              result = discovery.shapesContent;
-              break;
             default:
               return {
                 content: [{ type: 'text' as const, text: `Unknown tool: ${name}` }],

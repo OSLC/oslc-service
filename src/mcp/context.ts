@@ -95,6 +95,11 @@ export interface DiscoveredServiceProvider {
   factories: DiscoveredFactory[];
   /** Query capabilities */
   queries: DiscoveredQuery[];
+  /** oslc:domain references — vocabulary namespace URIs declared by
+   *  this ServiceProvider. Per OSLC Core, vocabularies are discovered
+   *  through the catalog: each SP declares its domains here, and
+   *  clients fetch the domain content via get_resource on the URI. */
+  domains: string[];
 }
 
 /**

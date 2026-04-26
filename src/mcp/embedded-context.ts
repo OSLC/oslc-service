@@ -138,10 +138,19 @@ export class EmbeddedMcpContext implements OslcMcpContext {
 
       const factories: DiscoveredFactory[] = [];
       const queries: DiscoveredQuery[] = [];
+      const domainSet = new Set<string>();
 
       const serviceNodes = spStore.each(spSym, OSLC('service'), null);
       for (const serviceNode of serviceNodes) {
         const sn = serviceNode as NamedNode;
+
+        // oslc:domain — vocabulary namespace URIs declared by this
+        // service. Multiple services may share or override domains;
+        // we union them at the SP level for discovery.
+        const domainNodes = spStore.each(sn, OSLC('domain'), null);
+        for (const dn of domainNodes) {
+          if (dn.termType === 'NamedNode') domainSet.add(dn.value);
+        }
 
         // Creation factories
         const factoryNodes = spStore.each(sn, OSLC('creationFactory'), null);
@@ -188,7 +197,13 @@ export class EmbeddedMcpContext implements OslcMcpContext {
         }
       }
 
-      serviceProviders.push({ title: spTitle, uri: spURI, factories, queries });
+      serviceProviders.push({
+        title: spTitle,
+        uri: spURI,
+        factories,
+        queries,
+        domains: [...domainSet],
+      });
     }
 
     // If no SPs exist yet, build capabilities from the template
@@ -416,9 +431,11 @@ export class EmbeddedMcpContext implements OslcMcpContext {
     const template = this.catalogState.template;
     const factories: DiscoveredFactory[] = [];
     const queries: DiscoveredQuery[] = [];
+    const domainSet = new Set<string>();
 
     for (const metaSP of template.metaServiceProviders) {
       for (const metaService of metaSP.services) {
+        for (const d of metaService.domains) domainSet.add(d);
         for (const cf of metaService.creationFactories) {
           // Resolve shape URIs
           let shape: DiscoveredShape | null = null;
@@ -457,6 +474,7 @@ export class EmbeddedMcpContext implements OslcMcpContext {
       uri: this.catalogState.catalogURI,
       factories,
       queries,
+      domains: [...domainSet],
     };
   }
 
