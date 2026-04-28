@@ -69,10 +69,10 @@ export function compactHandler(
       const html = generateSmallPreviewHTML(resourceDoc, resourceURI);
       res.type('html').send(html);
     } else if (accepts === OSLC_COMPACT_XML || accepts === 'application/rdf+xml') {
-      const xml = generateCompactRDFXML(resourceDoc, resourceURI, env);
+      const xml = await generateCompactRDFXML(resourceDoc, resourceURI, env);
       res.type(OSLC_COMPACT_XML).send(xml);
     } else {
-      const turtle = generateCompactRDF(resourceDoc, resourceURI, env);
+      const turtle = await generateCompactRDF(resourceDoc, resourceURI, env);
       res.type('text/turtle').send(turtle);
     }
   };
@@ -125,7 +125,7 @@ export function compactAcceptMiddleware(
       return;
     }
 
-    const xml = generateCompactRDFXML(read.document, resourceURI, env);
+    const xml = await generateCompactRDFXML(read.document, resourceURI, env);
     res.type(OSLC_COMPACT_XML).send(xml);
   };
 }
@@ -141,6 +141,56 @@ function escapeHtml(text: string): string {
 function localName(uri: string): string {
   const parts = uri.split(/[#/]/);
   return parts[parts.length - 1] || uri;
+}
+
+/**
+ * Cache of shape URI → oslc:icon URL (or null if the shape has none
+ * or could not be fetched). Shapes are practically static for the
+ * lifetime of a server, so a per-process Map is sufficient.
+ */
+const shapeIconCache = new Map<string, string | null>();
+
+/**
+ * Look up the `oslc:icon` value for a resource by following its
+ * `oslc:instanceShape` to the shape document and reading the icon
+ * declared on the shape. Returns null if the resource has no
+ * instanceShape, the shape lookup fails, or the shape declares no
+ * icon. Implements the proposed `oslc:icon` ResourceShape extension
+ * (see docs/OSLC-Shape-Extensions.md, Part 2).
+ */
+async function lookupResourceIcon(
+  doc: rdflib.IndexedFormula,
+  resourceURI: string
+): Promise<string | null> {
+  const sym = doc.sym(resourceURI);
+  const shapeNode = doc.any(sym, OSLC('instanceShape'), null);
+  if (!shapeNode || shapeNode.termType !== 'NamedNode') return null;
+  const shapeURI = shapeNode.value;
+
+  if (shapeIconCache.has(shapeURI)) return shapeIconCache.get(shapeURI)!;
+
+  // Fragment URIs name a node within a shape document; HTTP fetches
+  // ignore the fragment and return the whole document. Parse and
+  // look up the fragment subject's oslc:icon.
+  const docURI = shapeURI.split('#')[0];
+  try {
+    const resp = await fetch(docURI, { headers: { Accept: 'text/turtle' } });
+    if (!resp.ok) {
+      shapeIconCache.set(shapeURI, null);
+      return null;
+    }
+    const turtle = await resp.text();
+    const shapeStore = rdflib.graph();
+    rdflib.parse(turtle, shapeStore, docURI, 'text/turtle');
+    const iconNode = shapeStore.any(rdflib.sym(shapeURI), OSLC('icon'), null);
+    const icon =
+      iconNode && iconNode.termType === 'NamedNode' ? iconNode.value : null;
+    shapeIconCache.set(shapeURI, icon);
+    return icon;
+  } catch {
+    shapeIconCache.set(shapeURI, null);
+    return null;
+  }
 }
 
 function generateSmallPreviewHTML(
@@ -176,28 +226,32 @@ function generateSmallPreviewHTML(
 </html>`;
 }
 
-function generateCompactRDF(
+async function generateCompactRDF(
   doc: rdflib.IndexedFormula,
   resourceURI: string,
   env: OslcEnv
-): string {
+): Promise<string> {
   const sym = doc.sym(resourceURI);
   const title = doc.anyValue(sym, DCTERMS('title')) ?? localName(resourceURI);
   const previewURL = env.appBase + '/compact?uri=' + encodeURIComponent(resourceURI);
+  const icon = await lookupResourceIcon(doc, resourceURI);
 
-  return `@prefix oslc: <http://open-services.net/ns/core#> .
+  let body = `@prefix oslc: <http://open-services.net/ns/core#> .
 @prefix dcterms: <http://purl.org/dc/terms/> .
 
 <${resourceURI}>
   a oslc:Compact ;
   dcterms:title "${escapeTurtle(title)}" ;
-  oslc:smallPreview [
+`;
+  if (icon) body += `  oslc:icon <${icon}> ;\n`;
+  body += `  oslc:smallPreview [
     a oslc:Preview ;
     oslc:document <${previewURL}> ;
     oslc:hintHeight "200px" ;
     oslc:hintWidth "400px"
   ] .
 `;
+  return body;
 }
 
 function escapeTurtle(s: string): string {
@@ -213,15 +267,16 @@ function escapeTurtle(s: string): string {
  * the output namespace-clean and avoids parser quirks some OSLC
  * clients have with rdflib's RDF/XML output.
  */
-function generateCompactRDFXML(
+async function generateCompactRDFXML(
   doc: rdflib.IndexedFormula,
   resourceURI: string,
   env: OslcEnv
-): string {
+): Promise<string> {
   const sym = doc.sym(resourceURI);
   const title = doc.anyValue(sym, DCTERMS('title')) ?? localName(resourceURI);
   const shortTitle = doc.anyValue(sym, OSLC('shortTitle')) ?? '';
   const previewURL = env.appBase + '/compact?uri=' + encodeURIComponent(resourceURI);
+  const icon = await lookupResourceIcon(doc, resourceURI);
 
   const lines: string[] = [
     '<?xml version="1.0" encoding="UTF-8"?>',
@@ -233,6 +288,9 @@ function generateCompactRDFXML(
   ];
   if (shortTitle) {
     lines.push(`    <oslc:shortTitle>${escapeXml(shortTitle)}</oslc:shortTitle>`);
+  }
+  if (icon) {
+    lines.push(`    <oslc:icon rdf:resource="${escapeXmlAttr(icon)}"/>`);
   }
   lines.push(
     '    <oslc:smallPreview>',
