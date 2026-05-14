@@ -126,9 +126,11 @@ export function formatShapesContent(shapes: Map<string, DiscoveredShape>): strin
         prop.occurs === 'zero-or-many' || prop.occurs === 'one-or-more';
       const typeStr = multi ? `${typeLabel}[]` : typeLabel;
       const ro = prop.readOnly ? ' (read-only)' : '';
-      const inverse = prop.inverseLabel
-        ? prop.inverseLabel
-        : prop.inversePropertyDefinition ?? '';
+      // For incoming-link discovery / labeling: clients use
+      // oslc:inversePropertyLabel when available. When not declared,
+      // the recommended fallback is the SPARQL-style "^<name>" form
+      // (see docs/OSLC-Shape-Extensions.md, "Recommended fallback").
+      const inverse = prop.inversePropertyLabel ?? `^${prop.name}`;
       lines.push(
         `| ${prop.name} | ${typeStr} | ${required ? 'Yes' : 'No'} | ${prop.description}${ro} | ${inverse} |`
       );

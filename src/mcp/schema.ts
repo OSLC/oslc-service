@@ -279,13 +279,12 @@ export function parseShape(store: IndexedFormula, shapeURI: string): DiscoveredS
       }
     }
 
-    // Inverse metadata — identifiers for the reverse direction used
-    // by clients to render incoming-link discovery results. The
-    // inverse URI is never asserted as a triple; only the forward
-    // direction is stored.
-    const inversePropertyDefinition =
-      store.any(pn, oslcNS('inversePropertyDefinition'))?.value;
-    const inverseLabel = store.anyValue(pn, oslcNS('inverseLabel'));
+    // Inverse-direction label — clients (oslc-browser, LDM consumers) use
+    // this to render incoming-link discovery results with human-readable
+    // wording without hardcoded inverse-type tables. The inverse triple
+    // is never stored; only the forward direction is. See
+    // docs/OSLC-Shape-Extensions.md (Part 1).
+    const inversePropertyLabel = store.anyValue(pn, oslcNS('inversePropertyLabel'));
 
     properties.push({
       name,
@@ -296,8 +295,7 @@ export function parseShape(store: IndexedFormula, shapeURI: string): DiscoveredS
       range,
       readOnly,
       allowedValues,
-      ...(inversePropertyDefinition ? { inversePropertyDefinition } : {}),
-      ...(inverseLabel ? { inverseLabel } : {}),
+      ...(inversePropertyLabel ? { inversePropertyLabel } : {}),
     });
   }
 
