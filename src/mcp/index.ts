@@ -371,6 +371,7 @@ export type {
   DiscoveredFactory,
   DiscoveredQuery,
   DiscoveredServiceProvider,
+  FailedShapeFetch,
   DiscoveryResult,
   OslcQueryParams,
   McpToolDefinition,

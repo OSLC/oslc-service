@@ -79,6 +79,22 @@ export interface DiscoveredQuery {
 }
 
 /**
+ * A resource shape a factory advertised but that could not be fetched.
+ *
+ * Worth recording rather than logging: `generateTools` emits a create tool
+ * only when `factory.shape` is present, so a failed fetch silently removes a
+ * tool. Without this list there is nothing to explain the absence.
+ */
+export interface FailedShapeFetch {
+  /** The oslc:resourceShape URI the factory advertised, fragment included. */
+  shapeURI: string;
+  /** The document actually requested — the shape URI without its fragment. */
+  documentURI: string;
+  /** The failure as reported, for the report to quote. */
+  reason: string;
+}
+
+/**
  * A discovered service provider.
  */
 export interface DiscoveredServiceProvider {
@@ -96,6 +112,9 @@ export interface DiscoveredServiceProvider {
    *  exactly-one; this list is the union of those values across all
    *  the SP's services. */
   domains: string[];
+  /** Shapes advertised by this SP's factories that could not be fetched.
+   *  Optional: absent means the discovery path did not track them. */
+  failedShapes?: FailedShapeFetch[];
 }
 
 /**
