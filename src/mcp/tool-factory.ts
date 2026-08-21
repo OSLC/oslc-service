@@ -39,7 +39,75 @@ function sanitizeName(title: string): string {
   return title
     .toLowerCase()
     .replace(/[\s-]+/g, '_')
-    .replace(/[^a-z0-9_]/g, '');
+    .replace(/[^a-z0-9_]/g, '')
+    // a title of only punctuation or whitespace sanitizes to underscores, which
+    // would yield `create__`; collapse runs and drop the edges so an empty stem
+    // is recognisably empty and the fallbacks below can act on it.
+    .replace(/_+/g, '_')
+    .replace(/^_|_$/g, '');
+}
+
+/**
+ * Boilerplate a server wraps around the type in a creation factory's title.
+ * Stripped so the tool name says what is created and nothing else.
+ *
+ * Real titles this exists for, from ELM 7.1 SR1 and a genOSLC owned domain:
+ *
+ *   "Create Finding"                                  -> create_finding
+ *   "Default creation factory for TestCase"           -> create_testcase
+ *   "Location for creation of Defect change requests" -> create_defect
+ *   "Requirement Creation Factory"                    -> create_requirement
+ *   "ReqIF Export Factory"                            -> create_reqif_export
+ *
+ * Untouched, those become `create_create_finding` and
+ * `create_location_for_creation_of_defect_change_requests`.
+ */
+const TITLE_PREFIX = [
+  /^default creation factory for\s+/,
+  /^location for creation of\s+/,
+  /^creation factory for\s+/,
+  /^create\s+/,
+  /^new\s+/,
+];
+
+const TITLE_SUFFIX = [
+  /\s+change requests?$/,
+  /\s+creation factory$/,
+  /\s+factory$/,
+];
+
+/**
+ * The tool name for a creation factory: `create_` plus the type it creates.
+ *
+ * Derived from the title rather than from `oslc:resourceType`, because a server
+ * may advertise many factories for ONE type and the title is what distinguishes
+ * them — EWM advertises ten factories that all create `oslc_cm:ChangeRequest`,
+ * one per work-item type, so the type alone would collide ten ways. The resource
+ * type is the fallback for a title that is entirely boilerplate ("Location for
+ * creation of change requests"), and the raw title the fallback after that.
+ *
+ * Exported and shared rather than copied: the rule is a list of patterns now,
+ * not three character replacements, and a second copy would drift silently while
+ * `describe_discovery` must report the name the factory will actually produce.
+ */
+export function createToolName(title: string, resourceType?: string): string {
+  let stem = (title ?? '').trim().toLowerCase();
+  for (const p of TITLE_PREFIX) {
+    if (p.test(stem)) { stem = stem.replace(p, ''); break; }
+  }
+  for (const sfx of TITLE_SUFFIX) {
+    if (sfx.test(stem)) { stem = stem.replace(sfx, ''); break; }
+  }
+  let name = sanitizeName(stem);
+  if (!name && resourceType) name = sanitizeName(uriLocalName(resourceType));
+  if (!name) name = sanitizeName(title ?? '');
+  return `create_${name || 'resource'}`;
+}
+
+/** The fragment or last path segment of a URI. */
+function uriLocalName(uri: string): string {
+  const cut = Math.max(uri.lastIndexOf('#'), uri.lastIndexOf('/'));
+  return cut >= 0 ? uri.slice(cut + 1) : uri;
 }
 
 /**
@@ -65,8 +133,7 @@ export function generateTools(
   // express with `oslc.where=rdf:type=<...>`.
   for (const sp of discovery.serviceProviders) {
     for (const factory of sp.factories) {
-      const baseName = sanitizeName(factory.title);
-      let createName = `create_${baseName}`;
+      let createName = createToolName(factory.title, factory.resourceType);
 
       // Disambiguate if name collision
       if (usedNames.has(createName)) {

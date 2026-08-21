@@ -385,7 +385,7 @@ export {
   parseShape,
 } from './schema.js';
 
-export { generateTools } from './tool-factory.js';
+export { generateTools, createToolName } from './tool-factory.js';
 export type { GeneratedTool } from './tool-factory.js';
 
 export {
