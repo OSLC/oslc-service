@@ -169,7 +169,7 @@ export function handleListResourceTypes(
                 name: p.name,
                 type: p.valueType.split(/[#/]/).pop(),
                 required:
-                  p.occurs === 'exactly-one' || p.occurs === 'one-or-more',
+                  p.occurs === 'exactly-one' || p.occurs === 'one-or-many',
               }))
           : [],
       });

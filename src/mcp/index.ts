@@ -385,6 +385,8 @@ export {
   parseShape,
 } from './schema.js';
 
+export { ShapeAccess, ShapePropertyAccess, OCCURS } from './shape-access.js';
+
 export { generateTools, createToolName } from './tool-factory.js';
 export type { GeneratedTool } from './tool-factory.js';
 

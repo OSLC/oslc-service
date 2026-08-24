@@ -12,6 +12,8 @@
 /**
  * A single property from an OSLC ResourceShape.
  */
+import type { ShapeAccess } from './shape-access.js';
+
 export interface ShapeProperty {
   /** Short name from oslc:name (used as JSON key in tool input) */
   name: string;
@@ -21,7 +23,7 @@ export interface ShapeProperty {
   description: string;
   /** Value type URI (e.g., xsd:string, oslc:Resource) */
   valueType: string;
-  /** Cardinality: 'exactly-one' | 'zero-or-one' | 'zero-or-many' | 'one-or-more' */
+  /** Cardinality: 'exactly-one' | 'zero-or-one' | 'zero-or-many' | 'one-or-many' */
   occurs: string;
   /** Expected resource type URI from oslc:range (if resource-valued) */
   range: string | null;
@@ -48,8 +50,24 @@ export interface DiscoveredShape {
   title: string;
   /** Description from dcterms:description */
   description: string;
-  /** Properties defined in this shape */
+  /**
+   * Properties defined in this shape, flattened.
+   *
+   * @deprecated A lossy projection kept for existing callers. It carries only the
+   * fields someone thought to project — `oslc:defaultValue` and
+   * `oslc:representation` are absent — and `occurs` here is a normalized token
+   * rather than the OSLC URI. Prefer {@link DiscoveredShape.access}, which reads
+   * the graph the shape was parsed from and can answer questions this record
+   * cannot.
+   */
   properties: ShapeProperty[];
+  /**
+   * Term-level access to the same shape, over its rdflib store.
+   *
+   * The source of truth. Absent only for a shape assembled by hand rather than
+   * parsed from RDF (some tests, and template-derived factories).
+   */
+  access?: ShapeAccess;
 }
 
 /**

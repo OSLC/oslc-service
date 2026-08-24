@@ -120,10 +120,10 @@ export function formatShapesContent(shapes: Map<string, DiscoveredShape>): strin
     lines.push('|----------|------|----------|-------------|---------|');
     for (const prop of shape.properties) {
       const required =
-        prop.occurs === 'exactly-one' || prop.occurs === 'one-or-more';
+        prop.occurs === 'exactly-one' || prop.occurs === 'one-or-many';
       const typeLabel = prop.valueType.split(/[#/]/).pop() ?? prop.valueType;
       const multi =
-        prop.occurs === 'zero-or-many' || prop.occurs === 'one-or-more';
+        prop.occurs === 'zero-or-many' || prop.occurs === 'one-or-many';
       const typeStr = multi ? `${typeLabel}[]` : typeLabel;
       const ro = prop.readOnly ? ' (read-only)' : '';
       // For incoming-link discovery / labeling: clients use

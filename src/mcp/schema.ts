@@ -7,6 +7,7 @@
  */
 
 import * as rdflib from 'rdflib';
+import { ShapeAccess } from './shape-access.js';
 import type { NamedNode, IndexedFormula } from 'rdflib';
 import type {
   ShapeProperty,
@@ -81,7 +82,7 @@ function mapValueType(valueType: string): { type: string; format?: string } {
 /**
  * Build a description string for a property, including range info.
  */
-function buildDescription(prop: ShapeProperty): string {
+function buildDescription(prop: ShapeProperty, defaultValue: string | null = null): string {
   const parts: string[] = [];
   if (prop.description) {
     parts.push(prop.description);
@@ -97,6 +98,12 @@ function buildDescription(prop: ShapeProperty): string {
   }
   if (prop.range) {
     parts.push(`Expected type: ${prop.range}`);
+  }
+  // Stated, not applied. A server may advertise a default its own write rules
+  // reject — EWM's `filedAgainst` defaults to the `Unassigned` category, which is
+  // refused on save — so a caller is told what the shape says and left to judge.
+  if (defaultValue) {
+    parts.push(`Shape default: ${defaultValue} (advertised; not guaranteed to be accepted)`);
   }
   return parts.join(' ');
 }
@@ -117,15 +124,22 @@ export function shapeToJsonSchema(
   const properties: Record<string, JsonSchemaProperty> = {};
   const required: string[] = [];
 
+  // Read through the graph where it is available: cardinality then comes from the
+  // OSLC URI the server published rather than from a token this library derived,
+  // and `oslc:defaultValue` — absent from the flattened record — can be reported.
+  const access = shape.access;
+
   for (const prop of shape.properties) {
     if (excludeReadOnly && prop.readOnly) {
       continue;
     }
 
+    const term = access?.property(prop.predicateURI) ?? null;
     const { type, format } = mapValueType(prop.valueType);
-    const description = buildDescription(prop);
-    const isArray =
-      prop.occurs === 'zero-or-many' || prop.occurs === 'one-or-more';
+    const description = buildDescription(prop, term?.defaultValue ?? null);
+    const isArray = term
+      ? term.isMultiValued
+      : prop.occurs === 'zero-or-many' || prop.occurs === 'one-or-many';
 
     if (isArray) {
       const schemaProp: JsonSchemaProperty = {
@@ -150,7 +164,7 @@ export function shapeToJsonSchema(
       properties[prop.name] = schemaProp;
     }
 
-    if (prop.occurs === 'exactly-one' || prop.occurs === 'one-or-more') {
+    if (term ? term.isRequired : (prop.occurs === 'exactly-one' || prop.occurs === 'one-or-many')) {
       required.push(prop.name);
     }
   }
@@ -214,16 +228,25 @@ export function buildPredicateMapForResource(
  * Map an oslc:occurs URI to a normalized string.
  */
 function normalizeOccurs(occursURI: string): string {
-  switch (occursURI) {
-    case `${OSLC_NS}Exactly-one`:
+  // Matched on the local name, case-insensitively, rather than the exact URI.
+  // The previous form tested for `One-or-more`, which OSLC does not define — the
+  // term is `oslc:One-or-many` — so a genuinely required, multi-valued property
+  // fell through to the default and was reported as `zero-or-one`: optional and
+  // single-valued. That reached the generated tool schemas, where it dropped the
+  // property from `required` and typed it as a scalar.
+  switch (occursURI.replace(/^.*[#/]/, '').toLowerCase()) {
+    case 'exactly-one':
       return 'exactly-one';
-    case `${OSLC_NS}Zero-or-one`:
+    case 'zero-or-one':
       return 'zero-or-one';
-    case `${OSLC_NS}Zero-or-many`:
+    case 'zero-or-many':
       return 'zero-or-many';
-    case `${OSLC_NS}One-or-more`:
-      return 'one-or-more';
+    case 'one-or-many':
+      return 'one-or-many';
     default:
+      // Unrecognised: the permissive reading. Treating an unknown cardinality as
+      // required would refuse writes a server accepts, which is worse than not
+      // enforcing one it does.
       return 'zero-or-one';
   }
 }
@@ -299,5 +322,7 @@ export function parseShape(store: IndexedFormula, shapeURI: string): DiscoveredS
     });
   }
 
-  return { shapeURI, title, description, properties };
+  // The graph comes with it: `properties` above is a convenience cache, and
+  // `access` is what can answer a question the cache was never shaped for.
+  return { shapeURI, title, description, properties, access: new ShapeAccess(store, shapeURI) };
 }
