@@ -126,6 +126,22 @@ export class ShapePropertyAccess {
    * `oslc:allowedValue`s, whether stated inline or gathered under an
    * `oslc:allowedValues` document node.
    */
+  /**
+   * The document an `oslc:allowedValues` points at, when its values are not in
+   * this graph.
+   *
+   * EWM's Defect shape references its `filedAgainst` categories rather than
+   * inlining them, so `allowedValues` is empty for a property that is
+   * `Exactly-one`. A client that cannot follow the reference skips the property
+   * and is refused on save, with nothing to explain why.
+   */
+  get allowedValuesRef(): string | null {
+    const collection = this.store.any(this.node as NamedNode, this.store.sym(`${OSLC}allowedValues`));
+    if (!collection) return null;
+    const inline = this.store.each(collection as NamedNode, this.store.sym(`${OSLC}allowedValue`), null);
+    return inline.length > 0 ? null : collection.value;
+  }
+
   get allowedValues(): string[] {
     const values = this.store
       .each(this.node as NamedNode, this.store.sym(`${OSLC}allowedValue`), null)
