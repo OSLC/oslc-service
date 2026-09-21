@@ -85,10 +85,18 @@ export async function handleUpdateResource(
 
   // Apply property changes
   for (const [name, value] of Object.entries(args.properties)) {
-    const predicateURI = predicateMap.get(name);
+    // A caller may name a property by its shape name, or give the predicate
+    // URI outright -- which is the only option for a predicate the shape does
+    // not carry a name for. Anything else is a mistake, and must be raised:
+    // skipping it silently reports success for a write that never happened.
+    const predicateURI = predicateMap.get(name)
+      ?? (/^https?:\/\//.test(name) ? name : undefined);
     if (!predicateURI) {
-      console.error(`[update] Unknown property: ${name}, using as-is`);
-      continue;
+      throw new Error(
+        `Unknown property \`${name}\` for ${args.uri}. Give a property name from the ` +
+        `resource's shape, or the predicate URI itself. Known names: ` +
+        `${[...predicateMap.keys()].sort().join(', ') || '(none discovered)'}`
+      );
     }
 
     const predicate = store.sym(predicateURI);
@@ -110,8 +118,20 @@ export async function handleUpdateResource(
     }
   }
 
-  // Serialize and PUT with ETag
-  const updatedTurtle = rdflib.serialize(null, store, args.uri, 'text/turtle') ?? '';
+  // Read-only properties are deliberately NOT stripped. Doing so is what OSLC
+  // Core implies -- they are provider-assigned and a client has no business
+  // submitting them -- and it was tried. It breaks Rhapsody Systems
+  // Engineering, whose shape marks `jazz_am:type` readOnly while the server
+  // rejects any PUT that omits it (`Invalid request content: Missing OSLC
+  // Architecture Management resource`). Providers that care ignore these
+  // properties; one that contradicts its own shape does not.
+  //
+  // Serialize with NO base URI, so every URI stays absolute. Passing the
+  // resource URI as the base makes rdflib relativise against it, emitting
+  // `rdf:about=""` and `rdf:resource="../shape/resource"`. Some servers resolve
+  // that correctly and some do not, and a link whose target relativised away is
+  // silently wrong rather than rejected.
+  const updatedTurtle = rdflib.serialize(null, store, undefined as unknown as string, 'text/turtle') ?? '';
   await context.updateResource(args.uri, updatedTurtle, etag);
 
   // Re-fetch to return current state

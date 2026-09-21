@@ -222,6 +222,35 @@ export function buildPredicateMapForResource(
   return new Map();
 }
 
+/**
+ * The predicates a shape marks `oslc:readOnly`, for the resource at `uri`.
+ *
+ * A PUT built by reading a resource and changing one property sends every
+ * property back, server-assigned ones included. OSLC Core says read-only
+ * properties are provider-assigned and a client should not submit them; most
+ * providers ignore them, but not all. Rhapsody Systems Engineering rejects the
+ * whole request with `500 Invalid request content: Missing OSLC Architecture
+ * Management resource`, so a generic read-modify-write cannot update it at all
+ * unless these are dropped first.
+ */
+export function readOnlyPredicatesForResource(
+  store: IndexedFormula,
+  uri: string,
+  discovery: DiscoveryResult
+): Set<string> {
+  const typeURIs = store.each(store.sym(uri), rdfNS('type'), null).map((n) => n.value);
+  for (const sp of discovery.serviceProviders) {
+    for (const factory of sp.factories) {
+      if (typeURIs.includes(factory.resourceType) && factory.shape) {
+        return new Set(
+          factory.shape.properties.filter((p) => p.readOnly).map((p) => p.predicateURI)
+        );
+      }
+    }
+  }
+  return new Set();
+}
+
 // ── Parse shape from rdflib store ───────────────────────────────
 
 /**
