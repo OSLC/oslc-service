@@ -8,6 +8,7 @@
 
 import * as rdflib from 'rdflib';
 import { ShapeAccess } from './shape-access.js';
+
 import type { NamedNode, IndexedFormula } from 'rdflib';
 import type {
   ShapeProperty,
@@ -24,6 +25,38 @@ const rdfNS = rdflib.Namespace('http://www.w3.org/1999/02/22-rdf-syntax-ns#');
 
 const OSLC_NS = 'http://open-services.net/ns/core#';
 const XSD_NS = 'http://www.w3.org/2001/XMLSchema#';
+
+/**
+ * Longest JSON Schema property key an MCP client is guaranteed to accept.
+ * The Anthropic API enforces `/^[a-zA-Z0-9_.-]{1,64}$/` and rejects the whole
+ * tool if any key fails it, so one over-long property makes a tool vanish
+ * rather than degrade.
+ */
+export const MAX_SCHEMA_KEY = 64;
+
+/**
+ * The schema key for a shape property: its name, shortened from the FRONT when
+ * it is too long.
+ *
+ * EWM advertises Jazz link-type ids as property names, and they run well past
+ * the limit -- measured on one work-item shape, 23 of 119 properties exceed it,
+ * the longest at 143 characters:
+ *
+ *   com.ibm.team.filesystem.reviews.linktype.codereview.extractedWorkItem.com.ibm.team.filesystem.reviews.linktype.codereview.extractedFromWorkItem
+ *
+ * **Keep the tail, not the head.** The leading segments are boilerplate
+ * (`com.ibm.team.build.linktype.`, `com.ibm.team.enterprise.promotion.linktype.`)
+ * while the distinguishing content is at the end, so truncating from the back
+ * collides immediately and truncating from the front does not: on all three
+ * work-item shapes the example needs -- task, defect and capability -- keeping
+ * the last 64 characters left every property name unique.
+ *
+ * `buildPredicateMap` registers both the full name and this key, so a caller
+ * that knows the real property name keeps working.
+ */
+export function schemaKey(name: string): string {
+  return name.length <= MAX_SCHEMA_KEY ? name : name.slice(-MAX_SCHEMA_KEY);
+}
 
 // ── JSON Schema types ───────────────────────────────────────────
 
@@ -153,7 +186,7 @@ export function shapeToJsonSchema(
       if (prop.allowedValues.length > 0) {
         schemaProp.items = { ...schemaProp.items!, enum: prop.allowedValues };
       }
-      properties[prop.name] = schemaProp;
+      properties[schemaKey(prop.name)] = schemaProp;
     } else {
       const schemaProp: JsonSchemaProperty = { type };
       if (description) schemaProp.description = description;
@@ -161,11 +194,11 @@ export function shapeToJsonSchema(
       if (prop.allowedValues.length > 0) {
         schemaProp.enum = prop.allowedValues;
       }
-      properties[prop.name] = schemaProp;
+      properties[schemaKey(prop.name)] = schemaProp;
     }
 
     if (term ? term.isRequired : (prop.occurs === 'exactly-one' || prop.occurs === 'one-or-many')) {
-      required.push(prop.name);
+      required.push(schemaKey(prop.name));
     }
   }
 
@@ -187,7 +220,10 @@ export function buildPredicateMap(
 ): Map<string, string> {
   const map = new Map<string, string>();
   for (const prop of shape.properties) {
+    // Both spellings resolve: the caller may use the real property name or the
+    // shortened key the schema advertises for it.
     map.set(prop.name, prop.predicateURI);
+    map.set(schemaKey(prop.name), prop.predicateURI);
   }
   return map;
 }
@@ -212,6 +248,7 @@ export function buildPredicateMapForResource(
         const map = new Map<string, string>();
         for (const prop of factory.shape.properties) {
           map.set(prop.name, prop.predicateURI);
+          map.set(schemaKey(prop.name), prop.predicateURI);
         }
         return map;
       }

@@ -383,6 +383,8 @@ export {
   buildPredicateMap,
   buildPredicateMapForResource,
   parseShape,
+  schemaKey,
+  MAX_SCHEMA_KEY,
 } from './schema.js';
 
 export { ShapeAccess, ShapePropertyAccess, OCCURS } from './shape-access.js';
