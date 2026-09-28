@@ -143,9 +143,78 @@ export function generateTools(
       }
       usedNames.add(createName);
 
-      if (factory.shape) {
-        const inputSchema = shapeToJsonSchema(factory.shape, true) as unknown as Record<string, unknown>;
-        const predicateMap = buildPredicateMap(factory.shape);
+      // A factory advertising several shapes stays ONE tool. Splitting it
+      // into one tool per shape multiplies the tool list by the provider's
+      // type system -- DOORS Next advertises 21 -- for no gain, since they
+      // all POST to the same URL. The caller picks with `instanceShape`,
+      // and the schema is the union of the shapes' properties.
+      const allShapes =
+        factory.shapes && factory.shapes.length > 0
+          ? factory.shapes
+          : factory.shape
+            ? [factory.shape]
+            : [];
+
+      if (allShapes.length > 0) {
+        const inputSchema = shapeToJsonSchema(allShapes[0], true) as unknown as Record<string, unknown>;
+        const predicateMap = buildPredicateMap(allShapes[0]);
+        for (const extra of allShapes.slice(1)) {
+          const extraSchema = shapeToJsonSchema(extra, true) as unknown as Record<string, unknown>;
+          Object.assign(
+            inputSchema.properties as Record<string, unknown>,
+            extraSchema.properties as Record<string, unknown>
+          );
+          for (const [name, predicateURI] of buildPredicateMap(extra)) {
+            if (!predicateMap.has(name)) predicateMap.set(name, predicateURI);
+          }
+        }
+        if (allShapes.length > 1) {
+          (inputSchema.properties as Record<string, unknown>).instanceShape = {
+            type: 'string',
+            enum: allShapes.map((sh) => sh.shapeURI),
+            description:
+              'Which shape to create against. Defaults to the first shape ' +
+              'the factory advertises, which is rarely the one you want when ' +
+              'the provider advertises many.',
+          };
+        }
+
+        // rdf:type is the CALLER's choice, from what the provider advertises.
+        //
+        // oslc:resourceType is Zero-or-many on a CreationFactory and
+        // oslc:resourceShape is Zero-or-many alongside it, the shapes
+        // constraining the types. So a factory legitimately creates several
+        // types and the caller picks the one that fits the resource it is
+        // creating -- a judgement about the resource, which only the caller
+        // can make. Offering the union of what the factory advertises and
+        // what its shapes declare via oslc:describes is what makes that
+        // choice possible; collapsing it to one is the tool guessing.
+        //
+        // It also guesses WRONG on DOORS Next, whose Requirement Creation
+        // Factory advertises exactly one oslc:resourceType --
+        // jazz sse#UserRequirement -- that its own shape does not describe
+        // and that it then refuses in a creation body:
+        //   403  CRRRS6401E  Error parsing content. Content must be valid rdf+xml.
+        // an error naming the syntax although the body is well-formed XML.
+        // The identical body typed oslc_rm:Requirement, which the shape does
+        // describe, is accepted.
+        const candidateTypes = [
+          ...new Set([
+            ...(factory.resourceTypes ?? (factory.resourceType ? [factory.resourceType] : [])),
+            ...allShapes.flatMap((sh) => sh.access?.describes ?? []),
+          ]),
+        ];
+        if (candidateTypes.length > 1) {
+          (inputSchema.properties as Record<string, unknown>).resourceType = {
+            type: 'array',
+            items: { type: 'string', enum: candidateTypes },
+            description:
+              'rdf:type(s) for the new resource, chosen from what this factory ' +
+              'and its shapes advertise. A resource may carry several. Pick the ' +
+              'type that fits what you are creating; the provider may reject a ' +
+              'type its shape does not describe.',
+          };
+        }
 
         // Template-derived factories (advertised before any concrete SP
         // exists) have an empty creationURI. Their tool *metadata* is
@@ -165,7 +234,7 @@ export function generateTools(
 
         tools.push({
           name: createName,
-          description: `Create a new ${factory.title} resource. ${factory.shape.description ?? ''}`.trim(),
+          description: `Create a new ${factory.title} resource. ${allShapes[0].description ?? ''}`.trim(),
           inputSchema,
           handler,
         });
@@ -190,22 +259,61 @@ function createCreateHandler(
     // Use a placeholder subject -- the server assigns the real URI
     const subject = rdflib.sym('urn:new-resource');
 
-    // Set rdf:type
-    if (factory.resourceType) {
-      store.add(subject, rdfNS('type'), rdflib.sym(factory.resourceType));
-    }
-
     // Add oslc:instanceShape pointing to this factory's shape. The HTTP
     // POST middleware in service.ts does this for the REST path by
     // matching rdf:type against factory.oslc:resourceType; the MCP path
     // bypasses that middleware and goes directly to storage, so we must
     // set these OSLC standard properties here.
-    if (factory.shape?.shapeURI) {
+    // oslc:instanceShape. The factory may advertise several shapes -- also
+    // Zero-or-many -- in which case the caller chooses one by passing
+    // `instanceShape`; anything else is the tool guessing which kind of
+    // resource the engineer meant to create. An unrecognised value falls
+    // back to the first advertised shape rather than being sent on.
+    const advertisedShapes =
+      factory.shapes && factory.shapes.length > 0
+        ? factory.shapes
+        : factory.shape
+          ? [factory.shape]
+          : [];
+    const requestedShape = typeof args.instanceShape === 'string' ? args.instanceShape : '';
+    const chosenShape =
+      advertisedShapes.find((sh) => sh.shapeURI === requestedShape) ?? advertisedShapes[0];
+    if (chosenShape?.shapeURI) {
       store.add(
         subject,
         rdflib.sym('http://open-services.net/ns/core#instanceShape'),
-        rdflib.sym(factory.shape.shapeURI)
+        rdflib.sym(chosenShape.shapeURI)
       );
+    }
+
+    // rdf:type -- the caller's choice, validated against what is advertised.
+    //
+    // The tool schema offers `resourceType` as an enum over the union of the
+    // factory's oslc:resourceType and its shapes' oslc:describes (see
+    // generateTools). Honour what the caller picked; fall back only to an
+    // advertised type the chosen shape actually describes, because a type the
+    // shape does not describe is one the provider is entitled to refuse --
+    // and DOORS Next does refuse its own advertised jazz sse#UserRequirement
+    // with a 403 CRRRS6401E blaming the RDF/XML syntax.
+    const describedTypes = chosenShape?.access?.describes ?? [];
+    const advertisedTypes =
+      factory.resourceTypes ?? (factory.resourceType ? [factory.resourceType] : []);
+    const requestedTypes = Array.isArray(args.resourceType)
+      ? (args.resourceType as unknown[]).filter((t): t is string => typeof t === 'string')
+      : typeof args.resourceType === 'string'
+        ? [args.resourceType]
+        : [];
+    const consistentAdvertised = advertisedTypes.filter(
+      (t) => describedTypes.length === 0 || describedTypes.includes(t)
+    );
+    const declaredTypes =
+      requestedTypes.length > 0
+        ? requestedTypes
+        : consistentAdvertised.length > 0
+          ? consistentAdvertised
+          : advertisedTypes;
+    for (const t of declaredTypes) {
+      store.add(subject, rdfNS('type'), rdflib.sym(t));
     }
 
     // Add oslc:serviceProvider derived from the factory creation URL.
@@ -234,6 +342,10 @@ function createCreateHandler(
 
     // Add properties
     for (const [name, value] of Object.entries(args)) {
+      // Consumed above to choose the shape, and deliberately not in the
+      // predicate map -- it selects the shape rather than being a property
+      // of it.
+      if (name === 'instanceShape' || name === 'resourceType') continue;
       const predicateURI = predicateMap.get(name);
       if (!predicateURI) {
         console.error(`[create] Unknown property: ${name}, skipping`);

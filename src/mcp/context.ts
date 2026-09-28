@@ -78,10 +78,32 @@ export interface DiscoveredFactory {
   title: string;
   /** Creation factory URL for POST */
   creationURI: string;
-  /** Resource type URI from oslc:resourceType */
+  /**
+   * Resource type URI from oslc:resourceType — the FIRST of `resourceTypes`.
+   * Retained for callers that only need one; prefer `resourceTypes`.
+   */
   resourceType: string;
-  /** Associated resource shape */
+  /**
+   * Every URI from oslc:resourceType. `oslc:resourceType` is Zero-or-many on
+   * a CreationFactory, so taking one is a guess. DOORS Next advertises its
+   * Requirement Creation Factory with more than one, and picking the wrong
+   * one makes every create fail: DNG answers
+   *   403  CRRRS6401E  Error parsing content. Content must be valid rdf+xml.
+   * which names the syntax though the body is well-formed XML and the real
+   * objection is the rdf:type.
+   */
+  resourceTypes?: string[];
+  /**
+   * Associated resource shape — the FIRST of `shapes`. Retained for callers
+   * that only need one; prefer `shapes`.
+   */
   shape: DiscoveredShape | null;
+  /**
+   * Every shape from oslc:resourceShape, also Zero-or-many. A factory that
+   * advertises several creates several kinds of resource through one URL, and
+   * the caller chooses with oslc:instanceShape.
+   */
+  shapes?: DiscoveredShape[];
 }
 
 /**
