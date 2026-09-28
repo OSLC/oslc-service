@@ -163,11 +163,30 @@ export function shapeToJsonSchema(
   const access = shape.access;
 
   for (const prop of shape.properties) {
-    if (excludeReadOnly && prop.readOnly) {
+    const term = access?.property(prop.predicateURI) ?? null;
+    const isRequired = term
+      ? term.isRequired
+      : prop.occurs === 'exactly-one' || prop.occurs === 'one-or-many';
+
+    // Read-only properties are provider-assigned, so a client normally drops
+    // them before writing. A property marked read-only AND required is the
+    // provider contradicting itself, and the requirement is the operative
+    // half: it will reject a body that omits it.
+    //
+    // Rhapsody SE does exactly this. `jazz_am:type` is `oslc:readOnly true`
+    // and `Exactly-one` on the creation shape, and omitting it fails the
+    // create outright:
+    //   500  error creating OSLC Architecture Management resource -
+    //        ElementObject has missing property elementType
+    // Filtering it out is the more spec-correct behaviour and it makes every
+    // create against that provider impossible. The same contradiction on the
+    // update path is elm-compatibility quirk 46, whose advice -- do not filter
+    // read-only properties out of a generic read-modify-write -- is what this
+    // generalises.
+    if (excludeReadOnly && prop.readOnly && !isRequired) {
       continue;
     }
 
-    const term = access?.property(prop.predicateURI) ?? null;
     const { type, format } = mapValueType(prop.valueType);
     const description = buildDescription(prop, term?.defaultValue ?? null);
     const isArray = term
@@ -197,7 +216,7 @@ export function shapeToJsonSchema(
       properties[schemaKey(prop.name)] = schemaProp;
     }
 
-    if (term ? term.isRequired : (prop.occurs === 'exactly-one' || prop.occurs === 'one-or-many')) {
+    if (isRequired) {
       required.push(schemaKey(prop.name));
     }
   }
