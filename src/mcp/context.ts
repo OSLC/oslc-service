@@ -183,7 +183,7 @@ export interface DiscoveryResult {
  * Parameters for OSLC queries (oslc.where, oslc.select, etc.).
  */
 export interface OslcQueryParams {
-  filter?: string;
+  where?: string;
   select?: string;
   orderBy?: string;
 }

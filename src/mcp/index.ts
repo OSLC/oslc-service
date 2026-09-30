@@ -100,7 +100,7 @@ const GENERIC_TOOLS: McpToolDefinition[] = [
   {
     name: 'query_resources',
     description:
-      'Query OSLC resources using a query capability URL. With the server consolidated to one QueryCapability per ServiceProvider, narrow by resource type by passing oslc.where=rdf:type=<...> in the filter argument.',
+      'Query OSLC resources using a query capability URL. With the server consolidated to one QueryCapability per ServiceProvider, narrow by resource type by passing rdf:type=<...> in the where argument.',
     inputSchema: {
       type: 'object',
       properties: {
@@ -108,10 +108,10 @@ const GENERIC_TOOLS: McpToolDefinition[] = [
           type: 'string',
           description: 'The query capability URL',
         },
-        filter: {
+        where: {
           type: 'string',
           description:
-            'OSLC query filter (oslc.where). Example: rdf:type=<http://www.omg.org/spec/BMM#Vision> or dcterms:title="My Resource"',
+            'OSLC query constraint (oslc.where). Example: rdf:type=<http://www.omg.org/spec/BMM#Vision> or dcterms:title="My Resource"',
         },
         select: {
           type: 'string',
@@ -123,6 +123,12 @@ const GENERIC_TOOLS: McpToolDefinition[] = [
         },
       },
       required: ['queryBase'],
+      // Reject an unknown property rather than ignoring it. Without this a
+      // caller who names the constraint `filter` -- as this tool once did --
+      // gets an UNFILTERED result set and a 200, which reads exactly like a
+      // filter that matched everything. A validation error naming the allowed
+      // properties is self-correcting; a silent full dump is not.
+      additionalProperties: false,
     },
   },
   // The catalog is the entry point for OSLC discovery: it lists
@@ -210,7 +216,7 @@ export async function mcpMiddleware(
               result = handleListResourceTypes(context, discovery);
               break;
             case 'query_resources':
-              result = await handleQueryResources(context, args as { queryBase: string; filter?: string; select?: string; orderBy?: string });
+              result = await handleQueryResources(context, args as { queryBase: string; where?: string; select?: string; orderBy?: string });
               break;
             case 'read_catalog': {
               if (!discovery) throw new Error('Discovery not yet complete');

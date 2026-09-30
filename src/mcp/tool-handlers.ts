@@ -210,10 +210,10 @@ export function handleListResourceTypes(
  */
 export async function handleQueryResources(
   context: OslcMcpContext,
-  args: { queryBase: string; filter?: string; select?: string; orderBy?: string }
+  args: { queryBase: string; where?: string; select?: string; orderBy?: string }
 ): Promise<string> {
   const result = await context.queryResources(args.queryBase, {
-    filter: args.filter,
+    where: args.where,
     select: args.select,
     orderBy: args.orderBy,
   });

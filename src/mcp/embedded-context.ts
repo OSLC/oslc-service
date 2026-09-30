@@ -329,7 +329,7 @@ export class EmbeddedMcpContext implements OslcMcpContext {
   async queryResources(queryURL: string, params: OslcQueryParams): Promise<string> {
     // Build query URL with OSLC parameters
     const url = new URL(queryURL);
-    if (params.filter) url.searchParams.set('oslc.where', params.filter);
+    if (params.where) url.searchParams.set('oslc.where', params.where);
     if (params.select) url.searchParams.set('oslc.select', params.select);
     if (params.orderBy) url.searchParams.set('oslc.orderBy', params.orderBy);
 
